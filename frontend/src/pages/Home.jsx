@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import SiteFooter from "../components/SiteFooter.jsx";
+import WorkCarousel from "../components/WorkCarousel.jsx";
 
 const works = ["work1.jpg", "work2.jpg", "work3.jpg", "work4.jpg", "work5.jpg", "work6.jpg", "work7.jpg", "work8.jpg", "work9.jpg"];
 
@@ -89,11 +90,7 @@ export default function Home() {
       <section className="work-section text-center">
         <div className="container">
           <h2>Nuestro Trabajo</h2>
-          <div className="work-grid">
-            {works.map((work) => (
-              <img src={`/fotos/${work}`} className="work-img" alt={`Trabajo ${work}`} key={work} />
-            ))}
-          </div>
+          <WorkCarousel images={works} />
         </div>
       </section>
 

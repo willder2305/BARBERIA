@@ -197,24 +197,114 @@ a {
 }
 
 .work-section {
-  background: #dadada;
+  background: radial-gradient(circle at top, #f3f5f4 0%, #dadada 54%, #cfd6d2 100%);
   color: #070707;
-  padding: 70px 0;
+  padding: 78px 0 88px;
+  overflow: hidden;
 }
 
-.work-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 18px;
-  margin-top: 25px;
+.work-section h2 {
+  font-size: clamp(2rem, 4vw, 3.2rem);
+  font-weight: 800;
+  margin-bottom: 30px;
 }
 
-.work-img {
+.work-carousel-shell {
+  position: relative;
+  perspective: 1400px;
+}
+
+.work-carousel-track {
+  display: flex;
+  gap: 26px;
+  overflow-x: auto;
+  overflow-y: visible;
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+  padding: 34px max(22px, calc((100vw - 1140px) / 2)) 44px;
+  margin-inline: calc(50% - 50vw);
+}
+
+.work-carousel-track::-webkit-scrollbar {
+  display: none;
+}
+
+.work-carousel-card {
+  --tilt-x: 0deg;
+  --tilt-y: 0deg;
+  flex: 0 0 clamp(230px, 23vw, 360px);
+  aspect-ratio: 1 / 1;
+  border: 0;
+  border-radius: 24px;
+  background: #e9f4ee;
+  box-shadow:
+    0 18px 34px rgba(0, 0, 0, 0.18),
+    0 0 0 1px rgba(0, 255, 128, 0.18),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  overflow: hidden;
+  scroll-snap-align: center;
+  transform: rotateX(var(--tilt-x)) rotateY(var(--tilt-y)) translateZ(0);
+  transform-style: preserve-3d;
+  transition:
+    flex-basis 0.45s ease,
+    transform 0.22s ease,
+    box-shadow 0.35s ease,
+    filter 0.35s ease;
+  will-change: transform, flex-basis;
+}
+
+.work-carousel-card:hover {
+  flex-basis: clamp(300px, 31vw, 470px);
+  z-index: 3;
+  box-shadow:
+    0 28px 54px rgba(0, 0, 0, 0.28),
+    0 18px 34px rgba(0, 255, 128, 0.2),
+    0 0 0 1px rgba(0, 255, 128, 0.46);
+  filter: saturate(1.07) contrast(1.04);
+}
+
+.work-carousel-card img {
   width: 100%;
-  aspect-ratio: 1;
-  border-radius: 18px;
+  height: 100%;
   object-fit: cover;
-  box-shadow: 0 0 20px rgba(0, 255, 128, 0.25);
+  transform: translateZ(36px) scale(1.04);
+  transition: transform 0.45s ease;
+}
+
+.work-carousel-card:hover img {
+  transform: translateZ(54px) scale(1.09);
+}
+
+.work-carousel-btn {
+  position: absolute;
+  top: 50%;
+  z-index: 4;
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(0, 255, 128, 0.35);
+  border-radius: 50%;
+  background: rgba(13, 17, 18, 0.84);
+  color: #fff;
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.28);
+  transform: translateY(-50%);
+}
+
+.work-carousel-btn:hover {
+  background: linear-gradient(135deg, var(--verde), var(--azul));
+  color: #001f3f;
+  transform: translateY(-50%) scale(1.08);
+}
+
+.work-carousel-btn.prev {
+  left: -6px;
+}
+
+.work-carousel-btn.next {
+  right: -6px;
 }
 
 .barbers-container,
@@ -828,6 +918,28 @@ tr:nth-child(even) {
   .experiencias-grid,
   .chart-grid {
     grid-template-columns: 1fr;
+  }
+
+  .work-section {
+    padding: 58px 0 66px;
+  }
+
+  .work-carousel-track {
+    gap: 16px;
+    padding-block: 22px 30px;
+  }
+
+  .work-carousel-card {
+    flex-basis: min(78vw, 320px);
+  }
+
+  .work-carousel-card:hover {
+    flex-basis: min(84vw, 360px);
+  }
+
+  .work-carousel-btn {
+    width: 40px;
+    height: 40px;
   }
 
   .weekdays,
