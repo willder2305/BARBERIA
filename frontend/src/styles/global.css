@@ -319,8 +319,19 @@ a {
   color: var(--blanco);
 }
 
+.amenities-section .amenities-grid {
+  margin-top: 42px;
+}
+
 .amenity-card {
+  min-height: 132px;
+  align-content: center;
+  background: rgba(18, 28, 30, 0.48);
   text-align: center;
+}
+
+.amenity-card i {
+  font-size: 2.2rem;
 }
 
 .work-section {

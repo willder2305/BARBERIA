@@ -22,9 +22,15 @@ const fallbackBarbers = [
 ];
 
 const amenities = [
-  { title: "Bebidas", text: "Disfruta una bebida mientras esperas tu turno.", icon: "fa-mug-hot" },
-  { title: "Snacks", text: "Opciones rapidas para acompanar tu visita.", icon: "fa-cookie-bite" },
-  { title: "Videojuegos", text: "Entretenimiento para que la espera sea mas comoda.", icon: "fa-gamepad" },
+  { title: "Bebidas", icon: "fa-champagne-glasses" },
+  { title: "Snacks", icon: "fa-cookie-bite" },
+  { title: "Videojuegos", icon: "fa-gamepad" },
+  { title: "Lavado de Cabello", icon: "fa-water" },
+  { title: "Materiales Premium", icon: "fa-spa" },
+  { title: "Zona de Confort", icon: "fa-chair" },
+  { title: "Entretenimiento", icon: "fa-tv" },
+  { title: "Ambiente Musical", icon: "fa-music" },
+  { title: "Atencion Personalizada", icon: "fa-user-tie" },
 ];
 
 /* CONFIGURACION DE REDES SOCIALES:
@@ -261,15 +267,13 @@ export default function Home() {
       {/* Seccion de amenidades: beneficios del local separados de los servicios pagados. */}
       <BlurredCarouselSection className="amenities-section text-center" images={blurredImages}>
         <div className="container">
-          <p className="eyebrow">Amenidades</p>
-          <h2>Comodidades durante tu visita</h2>
-          <p className="section-subtitle">Bebidas, snacks y videojuegos para una espera mas comoda.</p>
+          <h2>Experiencias Premium</h2>
+          <p className="section-subtitle">Porque tu visita merece mas que un simple corte</p>
           <div className="amenities-grid">
             {amenities.map((item) => (
               <article className="service-card-home amenity-card" key={item.title}>
                 <i className={`fa-solid ${item.icon}`} />
                 <h3>{item.title}</h3>
-                <p>{item.text}</p>
               </article>
             ))}
           </div>
