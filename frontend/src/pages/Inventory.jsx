@@ -1,103 +1,141 @@
 import { useEffect, useState } from "react";
 import PageHeader from "../components/PageHeader.jsx";
-import { createInventoryItem, deleteInventoryItem, getInventory, updateInventoryItem } from "../services/api.js";
+import { createInventoryItem, deleteInventoryItem, getInventory, registerInventorySale, updateInventoryItem } from "../services/api.js";
 
-const EMPTY_FORM = { id: "", nombre: "", cantidad: "", unidad: "" };
+const EMPTY_FORM = {
+  id: "",
+  nombre: "",
+  descripcion: "",
+  cantidad: "",
+  unidad: "",
+  precio_venta: "",
+  stock_minimo: "",
+  estado: "Activo",
+};
 
-// Renderiza el modulo de administracion de inventario.
 export default function Inventory() {
   const [items, setItems] = useState([]);
   const [form, setForm] = useState(EMPTY_FORM);
   const [message, setMessage] = useState("");
+  const [saleQty, setSaleQty] = useState({});
 
-  // Carga los insumos desde Flask.
   async function loadInventory() {
     const data = await getInventory();
     setItems(data);
   }
 
-  // Actualiza los campos del formulario de insumo.
   function handleChange(event) {
     setForm({ ...form, [event.target.name]: event.target.value });
   }
 
-  // Guarda un insumo nuevo o actualiza uno existente.
   async function handleSubmit(event) {
     event.preventDefault();
     setMessage("");
-    const payload = { nombre: form.nombre, cantidad: Number(form.cantidad), unidad: form.unidad };
+    const payload = {
+      ...form,
+      cantidad: Number(form.cantidad),
+      precio_venta: Number(form.precio_venta),
+      stock_minimo: Number(form.stock_minimo),
+    };
     if (form.id) {
       await updateInventoryItem(form.id, payload);
-      setMessage("Insumo actualizado.");
+      setMessage("Producto actualizado.");
     } else {
       await createInventoryItem(payload);
-      setMessage("Insumo creado.");
+      setMessage("Producto creado.");
     }
     setForm(EMPTY_FORM);
     await loadInventory();
   }
 
-  // Pasa el insumo seleccionado al formulario para editar.
   function editItem(item) {
-    setForm({ id: item.id, nombre: item.nombre, cantidad: item.cantidad, unidad: item.unidad });
+    setForm({
+      id: item.id,
+      nombre: item.nombre,
+      descripcion: item.descripcion,
+      cantidad: item.cantidad,
+      unidad: item.unidad,
+      precio_venta: item.precio_venta,
+      stock_minimo: item.stock_minimo,
+      estado: item.estado,
+    });
   }
 
-  // Elimina el insumo seleccionado y recarga la tabla.
-  async function removeItem(id) {
+  async function deactivateItem(id) {
+    if (!window.confirm("Desactivar producto sin borrar historial?")) return;
     await deleteInventoryItem(id);
     await loadInventory();
   }
 
-  // Limpia el formulario activo.
-  function cancelEdit() {
-    setForm(EMPTY_FORM);
+  async function sellItem(id) {
+    const cantidad = Number(saleQty[id] || 0);
+    if (cantidad <= 0) {
+      setMessage("Ingresa una cantidad vendida valida.");
+      return;
+    }
+    await registerInventorySale(id, cantidad);
+    setMessage("Venta registrada y stock actualizado.");
+    setSaleQty({ ...saleQty, [id]: "" });
+    await loadInventory();
   }
 
-  // Carga inventario al abrir la pantalla.
   useEffect(() => {
     loadInventory().catch(console.error);
   }, []);
 
   return (
     <main className="inventory-page">
-      <PageHeader title="Control de Inventario" subtitle="Gestiona los insumos y materiales usados en los servicios" backTo="/admin" />
+      <PageHeader title="Control de Inventario" subtitle="Gestiona productos, ventas y alertas de stock bajo" backTo="/admin" />
       <section className="contenedor">
         <section className="formulario">
-          <h2>Agregar o Modificar Insumo</h2>
+          <h2>Agregar o Modificar Producto</h2>
           {message && <div className="alert alert-success">{message}</div>}
           <form onSubmit={handleSubmit}>
-            <div className="inputs">
-              <input name="nombre" value={form.nombre} onChange={handleChange} placeholder="Nombre del insumo..." required />
-              <input name="cantidad" type="number" value={form.cantidad} onChange={handleChange} placeholder="Cantidad..." min="0" required />
-              <input name="unidad" value={form.unidad} onChange={handleChange} placeholder="Unidad (ej. piezas, frascos...)" />
+            <div className="inputs inventory-inputs">
+              <input name="nombre" value={form.nombre} onChange={handleChange} placeholder="Nombre..." required />
+              <input name="descripcion" value={form.descripcion} onChange={handleChange} placeholder="Descripcion..." />
+              <input name="cantidad" type="number" value={form.cantidad} onChange={handleChange} placeholder="Stock..." min="0" required />
+              <input name="unidad" value={form.unidad} onChange={handleChange} placeholder="Unidad..." />
+              <input name="precio_venta" type="number" step="0.01" value={form.precio_venta} onChange={handleChange} placeholder="Precio venta..." min="0" />
+              <input name="stock_minimo" type="number" value={form.stock_minimo} onChange={handleChange} placeholder="Stock minimo..." min="0" />
+              <select name="estado" value={form.estado} onChange={handleChange}>
+                <option value="Activo">Activo</option>
+                <option value="Inactivo">Inactivo</option>
+              </select>
             </div>
             <div className="acciones-form">
               <button type="submit">Guardar</button>
-              <button type="button" onClick={cancelEdit}>Cancelar</button>
+              <button type="button" onClick={() => setForm(EMPTY_FORM)}>Cancelar</button>
             </div>
           </form>
         </section>
         <section className="tabla">
           <h2>Inventario Actual</h2>
-          <table>
-            <thead>
-              <tr><th>ID</th><th>Nombre</th><th>Cantidad</th><th>Unidad</th><th>Acciones</th></tr>
-            </thead>
-            <tbody>
-              {items.map((item) => (
-                <tr key={item.id}>
-                  <td>{item.id}</td>
-                  <td>{item.nombre}</td>
-                  <td>{item.cantidad}</td>
-                  <td>{item.unidad}</td>
-                  <td>
-                    <button type="button" onClick={() => editItem(item)}>Editar</button>
-                    <button type="button" onClick={() => removeItem(item.id)}>Eliminar</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr><th>Producto</th><th>Stock</th><th>Precio</th><th>Estado</th><th>Venta</th><th>Acciones</th></tr>
+              </thead>
+              <tbody>
+                {items.map((item) => (
+                  <tr key={item.id} className={item.stock_bajo ? "low-stock-row" : ""}>
+                    <td>{item.nombre}<small>{item.descripcion}</small></td>
+                    <td>{item.cantidad} {item.unidad}<small>Min: {item.stock_minimo}</small></td>
+                    <td>Q{Number(item.precio_venta).toFixed(2)}</td>
+                    <td>{item.estado}{item.stock_bajo && <span className="stock-alert">Stock bajo</span>}</td>
+                    <td>
+                      <input className="sale-input" type="number" min="1" value={saleQty[item.id] || ""} onChange={(event) => setSaleQty({ ...saleQty, [item.id]: event.target.value })} />
+                      <button type="button" onClick={() => sellItem(item.id)}>Vender</button>
+                    </td>
+                    <td>
+                      <button type="button" onClick={() => editItem(item)}>Editar</button>
+                      <button type="button" onClick={() => deactivateItem(item.id)}>Desactivar</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       </section>
     </main>

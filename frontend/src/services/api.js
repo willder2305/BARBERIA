@@ -35,10 +35,109 @@ export function login(credentials) {
   });
 }
 
+export function getMe() {
+  return request("/auth/me");
+}
+
 // Obtiene todas las reservas o las filtra por barbero.
 export function getReservations(barberId = 0) {
   const suffix = barberId ? `?barbero_id=${barberId}` : "";
   return request(`/reservations${suffix}`);
+}
+
+// Lista barberos activos desde la base de datos.
+export function getBarbers(includeInactive = false) {
+  return request(`/barbers${includeInactive ? "?include_inactive=1" : ""}`);
+}
+
+// Lista servicios activos desde la base de datos.
+export function getServices(includeInactive = false) {
+  return request(`/services${includeInactive ? "?include_inactive=1" : ""}`);
+}
+
+export function createService(data) {
+  return request("/services", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateService(id, data) {
+  return request(`/services/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export function createBarber(data) {
+  return request("/barbers", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateBarber(id, data) {
+  return request(`/barbers/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export function getSettings() {
+  return request("/settings");
+}
+
+export function updateSettings(data) {
+  return request("/settings", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export function getBlockedDays() {
+  return request("/blocked-days");
+}
+
+export function createBlockedDay(data) {
+  return request("/blocked-days", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function deleteBlockedDay(id) {
+  return request(`/blocked-days/${id}`, {
+    method: "DELETE",
+  });
+}
+
+export function getSchedules(barberId = 0) {
+  const suffix = barberId ? `?barbero_id=${barberId}` : "";
+  return request(`/schedules${suffix}`);
+}
+
+export function updateSchedules(data) {
+  return request("/schedules", {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
+export function getClients(query = "") {
+  const suffix = query ? `?q=${encodeURIComponent(query)}` : "";
+  return request(`/clients${suffix}`);
+}
+
+export function getClientReservations(id) {
+  return request(`/clients/${id}/reservations`);
+}
+
+// Obtiene los horarios del dia y marca ocupados/bloqueados.
+export function getAvailability({ barberId, fecha, serviceId, serviceIds = [] }) {
+  const params = new URLSearchParams({ barbero_id: barberId, fecha });
+  if (serviceId) params.set("service_id", serviceId);
+  if (serviceIds.length) params.set("service_ids", serviceIds.join(","));
+  return request(`/reservations/availability?${params.toString()}`);
 }
 
 // Crea una nueva reserva desde el formulario publico.
@@ -50,10 +149,10 @@ export function createReservation(data) {
 }
 
 // Actualiza el estado de una reserva existente.
-export function updateReservationStatus(id, estado) {
+export function updateReservationStatus(id, estado, motivo = "") {
   return request(`/reservations/${id}/status`, {
     method: "PATCH",
-    body: JSON.stringify({ estado }),
+    body: JSON.stringify({ estado, motivo }),
   });
 }
 
@@ -85,7 +184,23 @@ export function deleteInventoryItem(id) {
   });
 }
 
+// Registra venta de inventario y descuenta stock.
+export function registerInventorySale(id, cantidad) {
+  return request(`/inventory/${id}/sales`, {
+    method: "POST",
+    body: JSON.stringify({ cantidad }),
+  });
+}
+
 // Obtiene el resumen estadistico para reportes.
 export function getReportSummary() {
   return request("/reports/summary");
+}
+
+export function reportExportUrl() {
+  return endpoint("/reports/export/xlsx");
+}
+
+export function reportPdfUrl() {
+  return endpoint("/reports/export/pdf");
 }

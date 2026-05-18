@@ -13,10 +13,8 @@ def resolve_dashboard(user):
     username = (user.get("usuario") or "").lower()
     if role == "Admin":
         return "/admin"
-    if role == "Barbero" and username == "luis":
-        return "/barberos/luis"
-    if role == "Barbero" and username == "douglas":
-        return "/barberos/douglas"
+    if role == "Barbero" and user.get("id_barbero"):
+        return f"/barberos/{username}"
     return None
 
 
@@ -34,7 +32,7 @@ def login():
         with db_cursor() as cursor:
             cursor.execute(
                 """
-                SELECT id, usuario, pass_hash, rol
+                SELECT id, usuario, pass_hash, rol, id_barbero
                 FROM usuarios
                 WHERE usuario = %s AND estado = 'Activo'
                 LIMIT 1
@@ -55,8 +53,16 @@ def login():
     session["id_usuario"] = user["id"]
     session["usuario"] = user["usuario"]
     session["rol"] = user["rol"]
+    session["id_barbero"] = user.get("id_barbero")
 
-    return ok({"usuario": user["usuario"], "rol": user["rol"], "dashboard": dashboard})
+    return ok(
+        {
+            "usuario": user["usuario"],
+            "rol": user["rol"],
+            "id_barbero": user.get("id_barbero"),
+            "dashboard": dashboard,
+        }
+    )
 
 
 @auth_bp.post("/logout")
@@ -71,4 +77,10 @@ def me():
     """Devuelve los datos basicos del usuario autenticado en la sesion actual."""
     if not session.get("usuario"):
         return fail("No autenticado.", 401)
-    return ok({"usuario": session["usuario"], "rol": session["rol"]})
+    return ok(
+        {
+            "usuario": session["usuario"],
+            "rol": session["rol"],
+            "id_barbero": session.get("id_barbero"),
+        }
+    )

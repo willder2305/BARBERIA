@@ -16,6 +16,9 @@ class Config:
     """Centraliza la configuracion leida desde variables de entorno."""
 
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = os.getenv("SESSION_COOKIE_SAMESITE", "Lax")
+    SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "false").lower() == "true"
     FRONTEND_ORIGINS = get_frontend_origins()
     DB_HOST = os.getenv("DB_HOST", "localhost")
     DB_PORT = int(os.getenv("DB_PORT", "3306"))

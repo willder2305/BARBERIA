@@ -1,0 +1,354 @@
+import { useEffect, useState } from "react";
+import PageHeader from "../components/PageHeader.jsx";
+import {
+  createBarber,
+  createBlockedDay,
+  createService,
+  deleteBlockedDay,
+  getBarbers,
+  getBlockedDays,
+  getClientReservations,
+  getClients,
+  getSchedules,
+  getServices,
+  getSettings,
+  updateBarber,
+  updateSchedules,
+  updateService,
+  updateSettings,
+} from "../services/api.js";
+
+const EMPTY_SERVICE = { id: "", nombre: "", precio: "", descripcion: "", requiere_separacion: false, estado: "Activo" };
+const EMPTY_BARBER = { id: "", nombre: "", telefono: "", usuario: "", password: "", estado: "Activo" };
+const EMPTY_BLOCK = { fecha: "", id_barbero: "", motivo: "" };
+const DEFAULT_SCHEDULE_ROWS = [
+  { dia_semana: 1, hora_inicio: "09:00", hora_fin: "13:00", activo: true },
+  { dia_semana: 1, hora_inicio: "14:00", hora_fin: "19:00", activo: true },
+  { dia_semana: 2, hora_inicio: "09:00", hora_fin: "13:00", activo: true },
+  { dia_semana: 2, hora_inicio: "14:00", hora_fin: "19:00", activo: true },
+  { dia_semana: 3, hora_inicio: "09:00", hora_fin: "13:00", activo: true },
+  { dia_semana: 3, hora_inicio: "14:00", hora_fin: "19:00", activo: true },
+  { dia_semana: 4, hora_inicio: "09:00", hora_fin: "13:00", activo: true },
+  { dia_semana: 4, hora_inicio: "14:00", hora_fin: "19:00", activo: true },
+  { dia_semana: 5, hora_inicio: "09:00", hora_fin: "13:00", activo: true },
+  { dia_semana: 5, hora_inicio: "14:00", hora_fin: "19:00", activo: true },
+  { dia_semana: 6, hora_inicio: "09:00", hora_fin: "13:00", activo: true },
+  { dia_semana: 6, hora_inicio: "14:00", hora_fin: "19:00", activo: true },
+];
+const DAY_NAMES = ["", "Lunes", "Martes", "Miercoles", "Jueves", "Viernes", "Sabado", "Domingo"];
+
+function normalizeDate(value) {
+  return String(value || "").slice(0, 10);
+}
+
+export default function AdminManagement() {
+  const [services, setServices] = useState([]);
+  const [barbers, setBarbers] = useState([]);
+  const [blockedDays, setBlockedDays] = useState([]);
+  const [clients, setClients] = useState([]);
+  const [clientSearch, setClientSearch] = useState("");
+  const [selectedClient, setSelectedClient] = useState(null);
+  const [clientHistory, setClientHistory] = useState([]);
+  const [settings, setSettings] = useState({});
+  const [scheduleBarberId, setScheduleBarberId] = useState("");
+  const [scheduleRows, setScheduleRows] = useState(DEFAULT_SCHEDULE_ROWS);
+  const [serviceForm, setServiceForm] = useState(EMPTY_SERVICE);
+  const [barberForm, setBarberForm] = useState(EMPTY_BARBER);
+  const [blockForm, setBlockForm] = useState(EMPTY_BLOCK);
+  const [message, setMessage] = useState("");
+  const [messageType, setMessageType] = useState("success");
+
+  async function loadAll() {
+    const [serviceRows, barberRows, blockRows, settingRows, clientRows] = await Promise.all([
+      getServices(true),
+      getBarbers(true),
+      getBlockedDays(),
+      getSettings(),
+      getClients(),
+    ]);
+    setServices(serviceRows);
+    setBarbers(barberRows);
+    setBlockedDays(blockRows);
+    setSettings(Object.fromEntries(settingRows.map((item) => [item.clave, item.valor])));
+    setClients(clientRows);
+    if (!scheduleBarberId && barberRows.length) {
+      setScheduleBarberId(String(barberRows[0].id));
+      await loadSchedules(barberRows[0].id);
+    }
+  }
+
+  async function loadSchedules(barberId = scheduleBarberId) {
+    if (!barberId) return;
+    const rows = await getSchedules(Number(barberId));
+    setScheduleRows(rows.length ? rows.map((row) => ({ ...row, activo: Boolean(row.activo) })) : DEFAULT_SCHEDULE_ROWS);
+  }
+
+  async function searchClients(event) {
+    event.preventDefault();
+    try {
+      setClients(await getClients(clientSearch));
+      setSelectedClient(null);
+      setClientHistory([]);
+    } catch (err) {
+      setMessageType("danger");
+      setMessage(err.message);
+    }
+  }
+
+  async function selectClient(client) {
+    try {
+      setSelectedClient(client);
+      setClientHistory(await getClientReservations(client.id));
+    } catch (err) {
+      setMessageType("danger");
+      setMessage(err.message);
+    }
+  }
+
+  async function saveService(event) {
+    event.preventDefault();
+    try {
+      const payload = { ...serviceForm, precio: Number(serviceForm.precio), requiere_separacion: Boolean(serviceForm.requiere_separacion) };
+      if (serviceForm.id) {
+        await updateService(serviceForm.id, payload);
+        setMessage("Servicio actualizado.");
+      } else {
+        await createService(payload);
+        setMessage("Servicio creado.");
+      }
+      setMessageType("success");
+      setServiceForm(EMPTY_SERVICE);
+      await loadAll();
+    } catch (err) {
+      setMessageType("danger");
+      setMessage(err.message);
+    }
+  }
+
+  async function saveBarber(event) {
+    event.preventDefault();
+    try {
+      const payload = { ...barberForm };
+      if (barberForm.id && !payload.password) {
+        delete payload.password;
+      }
+      if (barberForm.id) {
+        await updateBarber(barberForm.id, payload);
+        setMessage(payload.password ? "Barbero y contrasena actualizados." : "Barbero actualizado.");
+      } else {
+        await createBarber(payload);
+        setMessage("Barbero creado.");
+      }
+      setMessageType("success");
+      setBarberForm(EMPTY_BARBER);
+      await loadAll();
+    } catch (err) {
+      setMessageType("danger");
+      setMessage(err.message);
+    }
+  }
+
+  async function saveBlock(event) {
+    event.preventDefault();
+    try {
+      await createBlockedDay(blockForm);
+      setMessageType("success");
+      setMessage("Dia bloqueado.");
+      setBlockForm(EMPTY_BLOCK);
+      await loadAll();
+    } catch (err) {
+      setMessageType("danger");
+      setMessage(err.message);
+    }
+  }
+
+  async function saveSettings(event) {
+    event.preventDefault();
+    try {
+      await updateSettings(settings);
+      setMessageType("success");
+      setMessage("Configuracion actualizada.");
+      await loadAll();
+    } catch (err) {
+      setMessageType("danger");
+      setMessage(err.message);
+    }
+  }
+
+  function updateScheduleRow(index, field, value) {
+    setScheduleRows((current) => current.map((row, rowIndex) => (rowIndex === index ? { ...row, [field]: value } : row)));
+  }
+
+  async function saveSchedules(applyAll = false) {
+    try {
+      await updateSchedules({
+        barbero_id: Number(scheduleBarberId),
+        apply_all: applyAll,
+        schedules: scheduleRows,
+      });
+      setMessageType("success");
+      setMessage(applyAll ? "Horario aplicado a todos los barberos." : "Horario actualizado.");
+      if (!applyAll) await loadSchedules(scheduleBarberId);
+    } catch (err) {
+      setMessageType("danger");
+      setMessage(err.message);
+    }
+  }
+
+  useEffect(() => {
+    loadAll().catch((err) => {
+      setMessageType("danger");
+      setMessage(err.message);
+    });
+  }, []);
+
+  return (
+    <main className="management-page">
+      <PageHeader title="Administracion" subtitle="Gestiona servicios, barberos, dias bloqueados y configuracion" backTo="/admin" />
+      <section className="management-grid">
+        {message && <div className={`alert alert-${messageType} management-message`}>{message}</div>}
+
+        <article className="management-card">
+          <h2>Servicios</h2>
+          <form onSubmit={saveService} className="stack-form">
+            <input value={serviceForm.nombre} onChange={(event) => setServiceForm({ ...serviceForm, nombre: event.target.value })} placeholder="Nombre" required />
+            <input type="number" min="0" step="0.01" value={serviceForm.precio} onChange={(event) => setServiceForm({ ...serviceForm, precio: event.target.value })} placeholder="Precio" required />
+            <input value={serviceForm.descripcion} onChange={(event) => setServiceForm({ ...serviceForm, descripcion: event.target.value })} placeholder="Descripcion corta" />
+            <label className="check-row">
+              <input type="checkbox" checked={serviceForm.requiere_separacion} onChange={(event) => setServiceForm({ ...serviceForm, requiere_separacion: event.target.checked })} />
+              Requiere separacion skincare
+            </label>
+            <select value={serviceForm.estado} onChange={(event) => setServiceForm({ ...serviceForm, estado: event.target.value })}>
+              <option value="Activo">Activo</option>
+              <option value="Inactivo">Inactivo</option>
+            </select>
+            <button type="submit">{serviceForm.id ? "Actualizar" : "Crear"} servicio</button>
+          </form>
+          <div className="mini-list">
+            {services.map((service) => (
+              <button type="button" key={service.id} onClick={() => setServiceForm({ ...service, requiere_separacion: Boolean(service.requiere_separacion) })}>
+                {service.nombre} - Q{Number(service.precio).toFixed(2)} - {service.estado}
+              </button>
+            ))}
+          </div>
+        </article>
+
+        <article className="management-card">
+          <h2>Barberos</h2>
+          <form onSubmit={saveBarber} className="stack-form">
+            <input value={barberForm.nombre} onChange={(event) => setBarberForm({ ...barberForm, nombre: event.target.value })} placeholder="Nombre" required />
+            <input value={barberForm.telefono} onChange={(event) => setBarberForm({ ...barberForm, telefono: event.target.value })} placeholder="Telefono" />
+            <input value={barberForm.usuario} onChange={(event) => setBarberForm({ ...barberForm, usuario: event.target.value })} placeholder="Usuario" required />
+            <input type="password" value={barberForm.password} onChange={(event) => setBarberForm({ ...barberForm, password: event.target.value })} placeholder={barberForm.id ? "Nueva contrasena (opcional)" : "Contrasena inicial"} required={!barberForm.id} />
+            <select value={barberForm.estado} onChange={(event) => setBarberForm({ ...barberForm, estado: event.target.value })}>
+              <option value="Activo">Activo</option>
+              <option value="Inactivo">Inactivo</option>
+            </select>
+            <button type="submit">{barberForm.id ? "Actualizar" : "Crear"} barbero</button>
+          </form>
+          <div className="mini-list">
+            {barbers.map((barber) => (
+              <button type="button" key={barber.id} onClick={() => setBarberForm({ id: barber.id, nombre: barber.nombre, telefono: barber.telefono || "", estado: barber.estado, usuario: barber.usuario || "", password: "" })}>
+                {barber.nombre} - {barber.usuario || "sin usuario"} - {barber.estado}
+              </button>
+            ))}
+          </div>
+        </article>
+
+        <article className="management-card">
+          <h2>Dias bloqueados</h2>
+          <form onSubmit={saveBlock} className="stack-form">
+            <input type="date" value={blockForm.fecha} onChange={(event) => setBlockForm({ ...blockForm, fecha: event.target.value })} required />
+            <select value={blockForm.id_barbero} onChange={(event) => setBlockForm({ ...blockForm, id_barbero: event.target.value })}>
+              <option value="">Toda la barberia</option>
+              {barbers.map((barber) => <option key={barber.id} value={barber.id}>{barber.nombre}</option>)}
+            </select>
+            <input value={blockForm.motivo} onChange={(event) => setBlockForm({ ...blockForm, motivo: event.target.value })} placeholder="Motivo" />
+            <button type="submit">Bloquear dia</button>
+          </form>
+          <div className="mini-list">
+            {blockedDays.map((day) => (
+              <button type="button" key={day.id} onClick={async () => { await deleteBlockedDay(day.id); await loadAll(); }}>
+                {normalizeDate(day.fecha)} - {day.barbero ? `Solo ${day.barbero}` : "Toda la barberia"} - quitar
+              </button>
+            ))}
+          </div>
+        </article>
+
+        <article className="management-card management-card-wide">
+          <h2>Horarios</h2>
+          <div className="schedule-toolbar">
+            <select value={scheduleBarberId} onChange={async (event) => { setScheduleBarberId(event.target.value); await loadSchedules(event.target.value); }}>
+              {barbers.map((barber) => <option key={barber.id} value={barber.id}>{barber.nombre}</option>)}
+            </select>
+            <button type="button" onClick={() => setScheduleRows([...scheduleRows, { dia_semana: 1, hora_inicio: "09:00", hora_fin: "09:30", activo: true }])}>Agregar franja</button>
+            <button type="button" onClick={() => setScheduleRows(DEFAULT_SCHEDULE_ROWS)}>Horario base</button>
+          </div>
+          <div className="schedule-editor">
+            {scheduleRows.map((row, index) => (
+              <div className="schedule-row" key={`${row.id || "new"}-${index}`}>
+                <select value={row.dia_semana} onChange={(event) => updateScheduleRow(index, "dia_semana", Number(event.target.value))}>
+                  {DAY_NAMES.slice(1).map((day, dayIndex) => <option key={day} value={dayIndex + 1}>{day}</option>)}
+                </select>
+                <input type="time" step="1800" value={row.hora_inicio} onChange={(event) => updateScheduleRow(index, "hora_inicio", event.target.value)} />
+                <input type="time" step="1800" value={row.hora_fin} onChange={(event) => updateScheduleRow(index, "hora_fin", event.target.value)} />
+                <label className="check-row compact">
+                  <input type="checkbox" checked={Boolean(row.activo)} onChange={(event) => updateScheduleRow(index, "activo", event.target.checked)} />
+                  Activo
+                </label>
+                <button type="button" className="danger-lite" onClick={() => setScheduleRows(scheduleRows.filter((_, rowIndex) => rowIndex !== index))}>Quitar</button>
+              </div>
+            ))}
+          </div>
+          <div className="schedule-actions">
+            <button type="button" onClick={() => saveSchedules(false)}>Guardar barbero</button>
+            <button type="button" onClick={() => saveSchedules(true)}>Aplicar a todos</button>
+          </div>
+        </article>
+
+        <article className="management-card">
+          <h2>Clientes</h2>
+          <form onSubmit={searchClients} className="stack-form">
+            <input value={clientSearch} onChange={(event) => setClientSearch(event.target.value)} placeholder="Buscar por nombre o telefono" />
+            <button type="submit">Buscar clientes</button>
+          </form>
+          <div className="mini-list">
+            {clients.map((client) => (
+              <button type="button" key={client.id} onClick={() => selectClient(client)}>
+                {client.nombre} {client.apellido || ""} - {client.telefono} - {client.total_citas} citas - {client.strikes || 0} faltas
+              </button>
+            ))}
+          </div>
+          {selectedClient && (
+            <div className="client-history">
+              <h3>{selectedClient.nombre} {selectedClient.apellido || ""}</h3>
+              <p>{selectedClient.telefono} - {selectedClient.strikes || 0} faltas</p>
+              {clientHistory.length === 0 ? (
+                <p>Sin historial de citas.</p>
+              ) : (
+                clientHistory.map((item) => (
+                  <p key={item.id}>
+                    {normalizeDate(item.fecha)} {item.hora} - {item.barbero} - {item.servicios || "Sin servicios"} - {item.estado}
+                  </p>
+                ))
+              )}
+            </div>
+          )}
+        </article>
+
+        <article className="management-card">
+          <h2>Configuracion</h2>
+          <form onSubmit={saveSettings} className="stack-form">
+            {["facebook_followers", "instagram_followers", "tiktok_followers", "telefono_barberia", "horario_general", "recordatorio_horas_antes"].map((key) => (
+              <label key={key}>
+                {key}
+                <input value={settings[key] || ""} onChange={(event) => setSettings({ ...settings, [key]: event.target.value })} />
+              </label>
+            ))}
+            <button type="submit">Guardar configuracion</button>
+          </form>
+        </article>
+      </section>
+    </main>
+  );
+}

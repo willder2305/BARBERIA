@@ -1,11 +1,44 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import SiteFooter from "../components/SiteFooter.jsx";
 import WorkCarousel from "../components/WorkCarousel.jsx";
+import { getBarbers, getServices, getSettings } from "../services/api.js";
 
 const works = ["work1.jpg", "work2.jpg", "work3.jpg", "work4.jpg", "work5.jpg", "work6.jpg", "work7.jpg", "work8.jpg", "work9.jpg"];
 
-// Renderiza la pagina publica principal de la barberia.
+const fallbackServices = [
+  { id: "corte", nombre: "Corte de Cabello", precio: 40, requiere_separacion: 0 },
+  { id: "barba", nombre: "Tallado de Barba", precio: 20, requiere_separacion: 0 },
+  { id: "skin", nombre: "Skin Care", precio: 25, requiere_separacion: 1 },
+];
+
+const fallbackBarbers = [
+  { id: 1, nombre: "Wicho" },
+  { id: 2, nombre: "Douglas" },
+];
+
 export default function Home() {
+  const [services, setServices] = useState(fallbackServices);
+  const [barbers, setBarbers] = useState(fallbackBarbers);
+  const [settings, setSettings] = useState({
+    facebook_followers: "150",
+    instagram_followers: "300",
+    tiktok_followers: "58",
+  });
+
+  useEffect(() => {
+    Promise.all([getServices(), getBarbers(), getSettings()])
+      .then(([serviceRows, barberRows, settingRows]) => {
+        if (serviceRows.length) setServices(serviceRows);
+        if (barberRows.length) setBarbers(barberRows);
+        setSettings((current) => ({
+          ...current,
+          ...Object.fromEntries(settingRows.map((item) => [item.clave, item.valor])),
+        }));
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <>
       <header className="home-header">
@@ -15,7 +48,7 @@ export default function Home() {
             <img src="/fotos/logo2.png" alt="Logo Wicho's Barber Shop" className="logo-img" />
           </div>
           <nav className="nav-buttons">
-            <Link to="/login">Iniciar Sesión</Link>
+            <Link to="/login">Iniciar Sesion</Link>
             <Link to="/faq">FAQ</Link>
             <a href="#about">Sobre Nosotros</a>
             <Link to="/reservas" className="btn-cta">Reservar Ahora</Link>
@@ -29,30 +62,30 @@ export default function Home() {
             <div className="col-md-4 social-box">
               <i className="fab fa-facebook fa-3x" />
               <p className="social-text">Fans en Facebook</p>
-              <h3 className="count">150</h3>
+              <h3 className="count">{settings.facebook_followers}</h3>
             </div>
             <div className="col-md-4 social-box">
               <i className="fab fa-instagram fa-3x" />
               <p className="social-text">Seguidores en Instagram</p>
-              <h3 className="count">300</h3>
+              <h3 className="count">{settings.instagram_followers}</h3>
             </div>
             <div className="col-md-4 social-box">
               <i className="fab fa-tiktok fa-3x" />
               <p className="social-text">Seguidores en TikTok</p>
-              <h3 className="count">58</h3>
+              <h3 className="count">{settings.tiktok_followers}</h3>
             </div>
           </div>
-          <p className="follow-text mt-4">Síguenos en nuestras redes sociales</p>
+          <p className="follow-text mt-4">Siguenos en nuestras redes sociales</p>
         </div>
       </section>
 
       <section id="about" className="about-section container text-center">
-        <h2>¿Quiénes Somos?</h2>
+        <h2>Quienes Somos</h2>
         <div className="row">
           {[
-            ["Misión", "Brindar una experiencia única de barbería de lujo con servicios de calidad."],
-            ["Visión", "Convertirnos en la barbería más reconocida de la región."],
-            ["Valores", "Compromiso, excelencia, innovación y confianza."],
+            ["Mision", "Brindar una experiencia unica de barberia de lujo con servicios de calidad."],
+            ["Vision", "Convertirnos en la barberia mas reconocida de la region."],
+            ["Valores", "Compromiso, excelencia, innovacion y confianza."],
           ].map(([title, text]) => (
             <div className="col-md-4" key={title}>
               <div className="about-card">
@@ -65,23 +98,14 @@ export default function Home() {
       </section>
 
       <section className="experiencias-section text-center bg-carrusel">
-        <h2>Experiencias Premium</h2>
-        <p className="subtitle">Porque tu visita merece más que un simple corte</p>
+        <h2>Servicios Activos</h2>
+        <p className="subtitle">Precios configurados desde el panel administrador</p>
         <div className="container experiencias-grid">
-          {[
-            ["fa-glass-cheers", "Bebidas"],
-            ["fa-cookie-bite", "Snacks"],
-            ["fa-gamepad", "Videojuegos"],
-            ["fa-water", "Lavado de Cabello"],
-            ["fa-spa", "Materiales Premium"],
-            ["fa-chair", "Zona de Confort"],
-            ["fa-tv", "Entretenimiento"],
-            ["fa-music", "Ambiente Musical"],
-            ["fa-user-tie", "Atención Personalizada"],
-          ].map(([icon, label]) => (
-            <div className="experiencia" key={label}>
-              <i className={`fas ${icon} fa-2x`} />
-              <p>{label}</p>
+          {services.map((service) => (
+            <div className="experiencia" key={service.id}>
+              <i className={`fas ${service.requiere_separacion ? "fa-spa" : "fa-scissors"} fa-2x`} />
+              <p>{service.nombre}</p>
+              <strong>Q{Number(service.precio).toFixed(2)}</strong>
             </div>
           ))}
         </div>
@@ -98,20 +122,17 @@ export default function Home() {
         <h2>Conoce a Nuestros Barbers</h2>
         <p className="section-subtitle">Profesionales apasionados por darte el mejor estilo</p>
         <div className="barbers-container">
-          {[
-            ["Wicho", "/fotos/1.jpg", "Experto en cortes clásicos, modernos y tallados precisos."],
-            ["Douglas", "/fotos/2.jpg", "Especialista en fades, desvanecidos y arreglos de barba."],
-          ].map(([name, image, text]) => (
-            <div className="flip-card" key={name}>
+          {barbers.map((barber) => (
+            <div className="flip-card" key={barber.id}>
               <div className="flip-card-inner">
                 <div className="flip-card-front">
-                  <img src={image} alt={name} className="barber-img" />
-                  <h3>{name}</h3>
+                  <img src={Number(barber.id) === 1 ? "/fotos/1.jpg" : "/fotos/2.jpg"} alt={barber.nombre} className="barber-img" />
+                  <h3>{barber.nombre}</h3>
                 </div>
                 <div className="flip-card-back">
-                  <h3>{name}</h3>
-                  <p>{text}</p>
-                  <p>Cada cliente debe salir con un estilo que lo haga sentir único.</p>
+                  <h3>{barber.nombre}</h3>
+                  <p>Atiende todos los servicios activos de la barberia.</p>
+                  <p>Cada cliente debe salir con un estilo que lo haga sentir unico.</p>
                 </div>
               </div>
             </div>
@@ -124,7 +145,7 @@ export default function Home() {
           <h2>Horarios</h2>
           <div className="schedule-grid">
             <div className="schedule-card">
-              <h3>Lunes - Sábado</h3>
+              <h3>Lunes - Sabado</h3>
               <p>9:00 am - 1:00 pm</p>
               <p>2:00 pm - 7:00 pm</p>
             </div>
@@ -139,7 +160,7 @@ export default function Home() {
       <section className="cta-section text-center bg-carrusel">
         <div className="container">
           <h2>Agenda tu cita ahora</h2>
-          <p>Reserva en línea y asegura tu horario favorito. Rápido y sencillo.</p>
+          <p>Reserva en linea y asegura tu horario favorito. Rapido y sencillo.</p>
           <Link to="/reservas" className="btn-reservar">Reservar Ahora</Link>
         </div>
       </section>
