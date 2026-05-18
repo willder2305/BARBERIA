@@ -5,6 +5,7 @@ import {
   createBlockedDay,
   createGalleryItem,
   createService,
+  createUser,
   deleteBlockedDay,
   deleteGalleryItem,
   getBarbers,
@@ -15,15 +16,18 @@ import {
   getSchedules,
   getServices,
   getSettings,
+  getUsers,
   updateBarber,
   updateGalleryItem,
   updateSchedules,
   updateService,
   updateSettings,
+  updateUser,
 } from "../services/api.js";
 
 const EMPTY_SERVICE = { id: "", nombre: "", precio: "", descripcion: "", requiere_separacion: false, estado: "Activo" };
 const EMPTY_BARBER = { id: "", nombre: "", telefono: "", descripcion: "", usuario: "", password: "", confirmPassword: "", estado: "Activo" };
+const EMPTY_USER = { id: "", nombre: "", usuario: "", rol: "Admin", id_barbero: "", estado: "Activo", password: "", confirmPassword: "" };
 const EMPTY_BLOCK = { fecha: "", id_barbero: "", motivo: "" };
 const EMPTY_GALLERY = { id: "", titulo: "", descripcion: "", image_url: "", activo: true, file: null };
 const API_ORIGIN = (import.meta.env.VITE_API_URL || "http://127.0.0.1:5000/api").replace(/\/api\/?$/, "");
@@ -52,6 +56,7 @@ export default function AdminManagement() {
   const [barbers, setBarbers] = useState([]);
   const [blockedDays, setBlockedDays] = useState([]);
   const [clients, setClients] = useState([]);
+  const [users, setUsers] = useState([]);
   const [clientSearch, setClientSearch] = useState("");
   const [selectedClient, setSelectedClient] = useState(null);
   const [clientHistory, setClientHistory] = useState([]);
@@ -62,19 +67,21 @@ export default function AdminManagement() {
   const [scheduleRows, setScheduleRows] = useState(DEFAULT_SCHEDULE_ROWS);
   const [serviceForm, setServiceForm] = useState(EMPTY_SERVICE);
   const [barberForm, setBarberForm] = useState(EMPTY_BARBER);
+  const [userForm, setUserForm] = useState(EMPTY_USER);
   const [blockForm, setBlockForm] = useState(EMPTY_BLOCK);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("success");
   const [settingsSavedModal, setSettingsSavedModal] = useState(false);
 
   async function loadAll() {
-    const [serviceRows, barberRows, blockRows, settingRows, clientRows, galleryRows] = await Promise.all([
+    const [serviceRows, barberRows, blockRows, settingRows, clientRows, galleryRows, userRows] = await Promise.all([
       getServices(true),
       getBarbers(true),
       getBlockedDays(),
       getSettings(),
       getClients(),
       getGallery(true),
+      getUsers(),
     ]);
     setServices(serviceRows);
     setBarbers(barberRows);
@@ -82,6 +89,7 @@ export default function AdminManagement() {
     setSettings(Object.fromEntries(settingRows.map((item) => [item.clave, item.valor])));
     setClients(clientRows);
     setGallery(galleryRows);
+    setUsers(userRows);
     if (!scheduleBarberId && barberRows.length) {
       setScheduleBarberId(String(barberRows[0].id));
       await loadSchedules(barberRows[0].id);
@@ -159,6 +167,38 @@ export default function AdminManagement() {
       }
       setMessageType("success");
       setBarberForm(EMPTY_BARBER);
+      await loadAll();
+    } catch (err) {
+      setMessageType("danger");
+      setMessage(err.message);
+    }
+  }
+
+  async function saveUser(event) {
+    event.preventDefault();
+    try {
+      const payload = { ...userForm, id_barbero: userForm.rol === "Barbero" ? userForm.id_barbero : "" };
+      // El frontend confirma contrasena, pero el backend conserva la validacion autoritativa.
+      if (payload.password || !payload.id) {
+        if (payload.password !== payload.confirmPassword) {
+          setMessageType("danger");
+          setMessage("La confirmacion de contrasena no coincide.");
+          return;
+        }
+      }
+      delete payload.confirmPassword;
+      if (payload.id && !payload.password) {
+        delete payload.password;
+      }
+      if (payload.id) {
+        await updateUser(payload.id, payload);
+        setMessage(payload.password ? "Usuario y contrasena actualizados." : "Usuario actualizado.");
+      } else {
+        await createUser(payload);
+        setMessage("Usuario creado.");
+      }
+      setMessageType("success");
+      setUserForm(EMPTY_USER);
       await loadAll();
     } catch (err) {
       setMessageType("danger");
@@ -332,6 +372,41 @@ export default function AdminManagement() {
           </div>
         </article>
 
+        <article className="management-card">
+          <h2>Usuarios</h2>
+          <form onSubmit={saveUser} className="stack-form">
+            <input value={userForm.nombre} onChange={(event) => setUserForm({ ...userForm, nombre: event.target.value })} placeholder="Nombre completo" required />
+            <input value={userForm.usuario} onChange={(event) => setUserForm({ ...userForm, usuario: event.target.value })} placeholder="Usuario de acceso" required />
+            <select value={userForm.rol} onChange={(event) => setUserForm({ ...userForm, rol: event.target.value, id_barbero: event.target.value === "Admin" ? "" : userForm.id_barbero })}>
+              <option value="Admin">Administrador</option>
+              <option value="Barbero">Barbero</option>
+            </select>
+            {userForm.rol === "Barbero" && (
+              <select value={userForm.id_barbero || ""} onChange={(event) => setUserForm({ ...userForm, id_barbero: event.target.value })} required>
+                <option value="">Vincular barbero</option>
+                {barbers.map((barber) => <option key={barber.id} value={barber.id}>{barber.nombre}</option>)}
+              </select>
+            )}
+            <select value={userForm.estado} onChange={(event) => setUserForm({ ...userForm, estado: event.target.value })}>
+              <option value="Activo">Activo</option>
+              <option value="Inactivo">Inactivo</option>
+            </select>
+            <input type="password" value={userForm.password} onChange={(event) => setUserForm({ ...userForm, password: event.target.value })} placeholder={userForm.id ? "Nueva contrasena (opcional)" : "Contrasena inicial"} required={!userForm.id} />
+            <input type="password" value={userForm.confirmPassword} onChange={(event) => setUserForm({ ...userForm, confirmPassword: event.target.value })} placeholder="Confirmar contrasena" required={!userForm.id || Boolean(userForm.password)} />
+            <div className="inline-actions">
+              <button type="submit">{userForm.id ? "Actualizar" : "Crear"} usuario</button>
+              {userForm.id && <button type="button" onClick={() => setUserForm(EMPTY_USER)}>Nuevo usuario</button>}
+            </div>
+          </form>
+          <div className="mini-list">
+            {users.map((user) => (
+              <button type="button" key={user.id} onClick={() => setUserForm({ id: user.id, nombre: user.nombre, usuario: user.usuario, rol: user.rol, id_barbero: user.id_barbero ? String(user.id_barbero) : "", estado: user.estado, password: "", confirmPassword: "" })}>
+                {user.usuario} - {user.rol}{user.barbero ? ` (${user.barbero})` : ""} - {user.estado}
+              </button>
+            ))}
+          </div>
+        </article>
+
         <article className="management-card management-card-wide">
           <h2>Galeria de fotos</h2>
           {/* Administracion de fotos: permite agregar, editar y borrar imagenes usadas por los carruseles del inicio. */}
@@ -339,7 +414,7 @@ export default function AdminManagement() {
             <input value={galleryForm.titulo} onChange={(event) => setGalleryForm({ ...galleryForm, titulo: event.target.value })} placeholder="Titulo de la foto" required />
             <input value={galleryForm.descripcion} onChange={(event) => setGalleryForm({ ...galleryForm, descripcion: event.target.value })} placeholder="Descripcion corta" />
             <input value={galleryForm.image_url} onChange={(event) => setGalleryForm({ ...galleryForm, image_url: event.target.value })} placeholder="URL opcional, por ejemplo /fotos/work1.jpg" />
-            <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={(event) => setGalleryForm({ ...galleryForm, file: event.target.files?.[0] || null })} />
+            <input type="file" accept="image/png,image/jpeg,image/webp" onChange={(event) => setGalleryForm({ ...galleryForm, file: event.target.files?.[0] || null })} />
             <label className="check-row">
               <input type="checkbox" checked={galleryForm.activo} onChange={(event) => setGalleryForm({ ...galleryForm, activo: event.target.checked })} />
               Visible en carruseles

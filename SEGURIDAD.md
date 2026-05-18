@@ -8,6 +8,7 @@ Se reforzo el acceso directo a rutas privadas como `/admin`, `/admin/gestion`, `
 
 - Frontend: `/admin`, `/admin/gestion`, `/inventario`, `/reportes`, `/barberos/:usuario`.
 - Backend admin: reservas internas, reportes, inventario, clientes, horarios, dias bloqueados, configuracion, carga/edicion/borrado de galeria, creacion/edicion de servicios y barberos.
+- Backend usuarios: `/api/users` permite listar, crear y editar usuarios solo con rol `Admin`.
 - Backend barbero: lectura de sus reservas y cambio de estado solo para citas del barbero autenticado.
 - Consultas con `include_inactive=1`: requieren administrador.
 
@@ -23,6 +24,8 @@ El frontend consulta `/api/auth/me` antes de mostrar rutas privadas. Si no hay s
 - `Barbero`: acceso a su panel y a sus reservas.
 
 Cada request protegido valida que el usuario siga activo en la tabla `usuarios`.
+
+El administrador puede crear usuarios desde `/admin/gestion`, asignarles rol, estado, contraseña inicial y, cuando el rol sea `Barbero`, vincularlos a un barbero existente. El sistema impide que un administrador se quite a si mismo el rol `Admin` o se inactive accidentalmente.
 
 ## Contrasenas
 
@@ -70,6 +73,11 @@ La galeria administrativa permite solo `jpg`, `jpeg`, `png` y `webp`, valida MIM
 - Admin puede consultar recursos con `include_inactive=1`.
 - Login barbero correcto devuelve dashboard `/barberos/luis`.
 - Barbero intentando `/api/reports/summary` recibe `403`.
+- `/api/users` sin sesion devuelve `401`.
+- Barbero intentando crear usuarios recibe `403`.
+- Admin puede listar, crear y actualizar usuarios.
+- Usuario creado por admin queda guardado con hash `scrypt`; el usuario de prueba fue eliminado despues de verificar.
+- Contrasena debil al crear usuario devuelve `400`.
 - Logout invalida la sesion; luego `/api/auth/me` devuelve `401`.
 - Verificacion directa de usuarios locales: `admin`, `luis` y `douglas` usan hash `scrypt`.
 - `backend\.venv\Scripts\python.exe -m compileall backend\app backend\scripts` paso.

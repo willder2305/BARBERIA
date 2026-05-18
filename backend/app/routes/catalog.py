@@ -8,7 +8,7 @@ from werkzeug.utils import secure_filename
 
 from ..db import db_cursor
 from ..responses import fail, ok
-from ..security import ROLE_ADMIN, hash_password, require_admin_when, require_roles, validate_password_strength
+from ..security import ROLE_ADMIN, current_user, hash_password, require_admin_when, require_roles, validate_password_strength
 
 catalog_bp = Blueprint("catalog", __name__)
 
@@ -33,6 +33,12 @@ DEFAULT_SETTINGS = {
 
 def clean(value):
     return str(value or "").strip()
+
+
+def valid_username(value):
+    """Valida usuarios internos con caracteres simples para evitar ambiguedad."""
+    raw = clean(value)
+    return 3 <= len(raw) <= 50 and raw.replace("_", "").replace(".", "").replace("-", "").isalnum()
 
 
 def valid_url(value, allowed_hosts=()):
@@ -327,6 +333,143 @@ def update_barber(barber_id):
     except IntegrityError:
         return fail("No se pudo actualizar: el barbero o usuario ya existe.", 409)
     return ok({"message": "Barbero actualizado."})
+
+
+@catalog_bp.get("/users")
+@require_roles(ROLE_ADMIN)
+def list_users():
+    """Lista usuarios internos sin exponer hashes de contrasena."""
+    with db_cursor() as cursor:
+        cursor.execute(
+            """
+            SELECT u.id, u.nombre, u.usuario, u.rol, u.id_barbero, b.nombre AS barbero,
+                   u.estado, u.fecha_creacion, u.actualizado_en
+            FROM usuarios u
+            LEFT JOIN barberos b ON b.id = u.id_barbero
+            ORDER BY u.rol, u.usuario
+            """
+        )
+        rows = cursor.fetchall()
+    return ok(
+        [
+            {
+                **row,
+                "fecha_creacion": str(row["fecha_creacion"]) if row.get("fecha_creacion") else "",
+                "actualizado_en": str(row["actualizado_en"]) if row.get("actualizado_en") else "",
+            }
+            for row in rows
+        ]
+    )
+
+
+@catalog_bp.post("/users")
+@require_roles(ROLE_ADMIN)
+def create_user():
+    """Crea usuarios internos y guarda solo el hash de la contrasena asignada."""
+    data = request.get_json(silent=True) or request.form
+    nombre = clean(data.get("nombre"))
+    usuario = clean(data.get("usuario")).lower()
+    rol = clean(data.get("rol")) or ROLE_ADMIN
+    estado = clean(data.get("estado")) or "Activo"
+    password = clean(data.get("password"))
+    id_barbero = data.get("id_barbero") or None
+
+    if not nombre or not usuario or not password:
+        return fail("Nombre, usuario y contrasena son obligatorios.")
+    if not valid_username(usuario):
+        return fail("El usuario debe tener 3 a 50 caracteres validos.")
+    if rol not in {ROLE_ADMIN, "Barbero"}:
+        return fail("Rol invalido.")
+    if estado not in {"Activo", "Inactivo"}:
+        return fail("Estado invalido.")
+    password_error = validate_password_strength(password)
+    if password_error:
+        return fail(password_error)
+    if rol == "Barbero" and not id_barbero:
+        return fail("Un usuario Barbero debe vincularse a un barbero.")
+    if rol == ROLE_ADMIN:
+        id_barbero = None
+
+    try:
+        with db_cursor(commit=True) as cursor:
+            if id_barbero:
+                cursor.execute("SELECT id FROM barberos WHERE id = %s", (id_barbero,))
+                if not cursor.fetchone():
+                    return fail("Barbero no encontrado.", 404)
+                cursor.execute("SELECT id FROM usuarios WHERE rol = 'Barbero' AND id_barbero = %s LIMIT 1", (id_barbero,))
+                if cursor.fetchone():
+                    return fail("Ese barbero ya tiene un usuario asignado.", 409)
+            cursor.execute(
+                """
+                INSERT INTO usuarios (nombre, usuario, pass_hash, rol, id_barbero, estado)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                """,
+                (nombre, usuario, hash_password(password), rol, id_barbero, estado),
+            )
+    except IntegrityError:
+        return fail("Ya existe un usuario con ese nombre.", 409)
+    return ok({"message": "Usuario creado."}, 201)
+
+
+@catalog_bp.put("/users/<int:user_id>")
+@require_roles(ROLE_ADMIN)
+def update_user(user_id):
+    """Actualiza usuario, rol, estado y opcionalmente su contrasena."""
+    data = request.get_json(silent=True) or request.form
+    active_admin = current_user()
+    nombre = clean(data.get("nombre"))
+    usuario = clean(data.get("usuario")).lower()
+    rol = clean(data.get("rol")) or ROLE_ADMIN
+    estado = clean(data.get("estado")) or "Activo"
+    password = clean(data.get("password"))
+    id_barbero = data.get("id_barbero") or None
+
+    if not nombre or not usuario:
+        return fail("Nombre y usuario son obligatorios.")
+    if not valid_username(usuario):
+        return fail("El usuario debe tener 3 a 50 caracteres validos.")
+    if rol not in {ROLE_ADMIN, "Barbero"}:
+        return fail("Rol invalido.")
+    if estado not in {"Activo", "Inactivo"}:
+        return fail("Estado invalido.")
+    if password:
+        password_error = validate_password_strength(password)
+        if password_error:
+            return fail(password_error)
+    if int(active_admin["id"]) == int(user_id) and (rol != ROLE_ADMIN or estado != "Activo"):
+        return fail("No puedes quitarte tus propios permisos de administrador.")
+    if rol == "Barbero" and not id_barbero:
+        return fail("Un usuario Barbero debe vincularse a un barbero.")
+    if rol == ROLE_ADMIN:
+        id_barbero = None
+
+    try:
+        with db_cursor(commit=True) as cursor:
+            if id_barbero:
+                cursor.execute("SELECT id FROM barberos WHERE id = %s", (id_barbero,))
+                if not cursor.fetchone():
+                    return fail("Barbero no encontrado.", 404)
+                cursor.execute(
+                    "SELECT id FROM usuarios WHERE rol = 'Barbero' AND id_barbero = %s AND id <> %s LIMIT 1",
+                    (id_barbero, user_id),
+                )
+                if cursor.fetchone():
+                    return fail("Ese barbero ya tiene otro usuario asignado.", 409)
+            updates = ["nombre = %s", "usuario = %s", "rol = %s", "id_barbero = %s", "estado = %s"]
+            params = [nombre, usuario, rol, id_barbero, estado]
+            if password:
+                updates.append("pass_hash = %s")
+                params.append(hash_password(password))
+            params.append(user_id)
+            cursor.execute(
+                f"UPDATE usuarios SET {', '.join(updates)} WHERE id = %s",
+                params,
+            )
+            if cursor.rowcount == 0:
+                return fail("Usuario no encontrado.", 404)
+    except IntegrityError:
+        return fail("Ya existe un usuario con ese nombre.", 409)
+    return ok({"message": "Usuario actualizado."})
 
 
 @catalog_bp.get("/services")

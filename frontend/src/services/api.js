@@ -101,6 +101,24 @@ export function updateBarber(id, data) {
   });
 }
 
+export function getUsers() {
+  return request("/users");
+}
+
+export function createUser(data) {
+  return request("/users", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export function updateUser(id, data) {
+  return request(`/users/${id}`, {
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
+
 export function getSettings() {
   return request("/settings");
 }
