@@ -228,21 +228,23 @@ export default function Home() {
       </section>
 
       {/* Seccion institucional con tarjetas sencillas y legibles. */}
-      <section id="about" className="about-section container text-center">
-        <h2>Quienes Somos</h2>
-        <div className="row">
-          {[
-            ["Mision", "Brindar una experiencia unica de barberia con servicios de calidad y trato cercano."],
-            ["Vision", "Convertirnos en una barberia referente por estilo, puntualidad y confianza."],
-            ["Valores", "Compromiso, excelencia, innovacion y respeto por cada cliente."],
-          ].map(([title, text]) => (
-            <div className="col-md-4" key={title}>
-              <div className="about-card">
-                <h3>{title}</h3>
-                <p>{text}</p>
+      <section id="about" className="about-section text-center">
+        <div className="container">
+          <h2>Quienes Somos</h2>
+          <div className="row">
+            {[
+              ["Mision", "Brindar una experiencia unica de barberia con servicios de calidad y trato cercano."],
+              ["Vision", "Convertirnos en una barberia referente por estilo, puntualidad y confianza."],
+              ["Valores", "Compromiso, excelencia, innovacion y respeto por cada cliente."],
+            ].map(([title, text]) => (
+              <div className="col-md-4" key={title}>
+                <div className="about-card">
+                  <h3>{title}</h3>
+                  <p>{text}</p>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
 
