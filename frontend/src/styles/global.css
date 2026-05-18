@@ -1025,6 +1025,20 @@ a {
   flex-wrap: wrap;
 }
 
+.settings-saved-modal {
+  box-shadow: 0 22px 70px rgba(0, 255, 170, 0.18);
+}
+
+.settings-saved-modal h5 {
+  color: var(--verde);
+  margin: 0;
+}
+
+.settings-saved-modal p {
+  margin: 0;
+  font-size: 1.05rem;
+}
+
 .panel-header {
   background: linear-gradient(90deg, #0077ff, #00ffaa);
   text-align: center;

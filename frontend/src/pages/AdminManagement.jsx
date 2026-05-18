@@ -65,6 +65,7 @@ export default function AdminManagement() {
   const [blockForm, setBlockForm] = useState(EMPTY_BLOCK);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("success");
+  const [settingsSavedModal, setSettingsSavedModal] = useState(false);
 
   async function loadAll() {
     const [serviceRows, barberRows, blockRows, settingRows, clientRows, galleryRows] = await Promise.all([
@@ -215,8 +216,8 @@ export default function AdminManagement() {
     event.preventDefault();
     try {
       await updateSettings(settings);
-      setMessageType("success");
-      setMessage("Configuracion actualizada.");
+      setMessage("");
+      setSettingsSavedModal(true);
       await loadAll();
     } catch (err) {
       setMessageType("danger");
@@ -254,6 +255,24 @@ export default function AdminManagement() {
   return (
     <main className="management-page">
       <PageHeader title="Administracion" subtitle="Gestiona servicios, barberos, dias bloqueados y configuracion" backTo="/admin" />
+      {settingsSavedModal && (
+        <div className="modal-backdrop-custom" role="dialog" aria-modal="true" aria-labelledby="settings-saved-title">
+          <div className="modal-card settings-saved-modal">
+            <div className="modal-header-custom">
+              <h5 id="settings-saved-title">
+                <i className="fa-solid fa-circle-check" /> Configuracion guardada
+              </h5>
+              <button type="button" className="btn-close btn-close-white" aria-label="Cerrar" onClick={() => setSettingsSavedModal(false)} />
+            </div>
+            <div className="modal-body-custom">
+              <p>El cambio fue realizado correctamente.</p>
+            </div>
+            <div className="modal-actions">
+              <button type="button" className="btn btn-success" onClick={() => setSettingsSavedModal(false)}>Aceptar</button>
+            </div>
+          </div>
+        </div>
+      )}
       <section className="management-grid">
         {message && <div className={`alert alert-${messageType} management-message`}>{message}</div>}
 
