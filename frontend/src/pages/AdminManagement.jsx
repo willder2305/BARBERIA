@@ -3,24 +3,30 @@ import PageHeader from "../components/PageHeader.jsx";
 import {
   createBarber,
   createBlockedDay,
+  createGalleryItem,
   createService,
   deleteBlockedDay,
+  deleteGalleryItem,
   getBarbers,
   getBlockedDays,
   getClientReservations,
   getClients,
+  getGallery,
   getSchedules,
   getServices,
   getSettings,
   updateBarber,
+  updateGalleryItem,
   updateSchedules,
   updateService,
   updateSettings,
 } from "../services/api.js";
 
 const EMPTY_SERVICE = { id: "", nombre: "", precio: "", descripcion: "", requiere_separacion: false, estado: "Activo" };
-const EMPTY_BARBER = { id: "", nombre: "", telefono: "", usuario: "", password: "", estado: "Activo" };
+const EMPTY_BARBER = { id: "", nombre: "", telefono: "", descripcion: "", usuario: "", password: "", estado: "Activo" };
 const EMPTY_BLOCK = { fecha: "", id_barbero: "", motivo: "" };
+const EMPTY_GALLERY = { id: "", titulo: "", descripcion: "", image_url: "", activo: true, file: null };
+const API_ORIGIN = (import.meta.env.VITE_API_URL || "http://127.0.0.1:5000/api").replace(/\/api\/?$/, "");
 const DEFAULT_SCHEDULE_ROWS = [
   { dia_semana: 1, hora_inicio: "09:00", hora_fin: "13:00", activo: true },
   { dia_semana: 1, hora_inicio: "14:00", hora_fin: "19:00", activo: true },
@@ -50,6 +56,8 @@ export default function AdminManagement() {
   const [selectedClient, setSelectedClient] = useState(null);
   const [clientHistory, setClientHistory] = useState([]);
   const [settings, setSettings] = useState({});
+  const [gallery, setGallery] = useState([]);
+  const [galleryForm, setGalleryForm] = useState(EMPTY_GALLERY);
   const [scheduleBarberId, setScheduleBarberId] = useState("");
   const [scheduleRows, setScheduleRows] = useState(DEFAULT_SCHEDULE_ROWS);
   const [serviceForm, setServiceForm] = useState(EMPTY_SERVICE);
@@ -59,18 +67,20 @@ export default function AdminManagement() {
   const [messageType, setMessageType] = useState("success");
 
   async function loadAll() {
-    const [serviceRows, barberRows, blockRows, settingRows, clientRows] = await Promise.all([
+    const [serviceRows, barberRows, blockRows, settingRows, clientRows, galleryRows] = await Promise.all([
       getServices(true),
       getBarbers(true),
       getBlockedDays(),
       getSettings(),
       getClients(),
+      getGallery(true),
     ]);
     setServices(serviceRows);
     setBarbers(barberRows);
     setBlockedDays(blockRows);
     setSettings(Object.fromEntries(settingRows.map((item) => [item.clave, item.valor])));
     setClients(clientRows);
+    setGallery(galleryRows);
     if (!scheduleBarberId && barberRows.length) {
       setScheduleBarberId(String(barberRows[0].id));
       await loadSchedules(barberRows[0].id);
@@ -141,6 +151,45 @@ export default function AdminManagement() {
       }
       setMessageType("success");
       setBarberForm(EMPTY_BARBER);
+      await loadAll();
+    } catch (err) {
+      setMessageType("danger");
+      setMessage(err.message);
+    }
+  }
+
+  async function saveGallery(event) {
+    event.preventDefault();
+    try {
+      const formData = new FormData();
+      formData.append("titulo", galleryForm.titulo);
+      formData.append("descripcion", galleryForm.descripcion);
+      formData.append("image_url", galleryForm.image_url);
+      formData.append("activo", galleryForm.activo ? "1" : "0");
+      if (galleryForm.file) formData.append("file", galleryForm.file);
+
+      if (galleryForm.id) {
+        await updateGalleryItem(galleryForm.id, formData);
+        setMessage("Foto actualizada.");
+      } else {
+        await createGalleryItem(formData);
+        setMessage("Foto agregada.");
+      }
+      setMessageType("success");
+      setGalleryForm(EMPTY_GALLERY);
+      await loadAll();
+    } catch (err) {
+      setMessageType("danger");
+      setMessage(err.message);
+    }
+  }
+
+  async function removeGalleryPhoto(photoId) {
+    try {
+      await deleteGalleryItem(photoId);
+      setMessageType("success");
+      setMessage("Foto eliminada.");
+      if (galleryForm.id === photoId) setGalleryForm(EMPTY_GALLERY);
       await loadAll();
     } catch (err) {
       setMessageType("danger");
@@ -238,6 +287,7 @@ export default function AdminManagement() {
           <form onSubmit={saveBarber} className="stack-form">
             <input value={barberForm.nombre} onChange={(event) => setBarberForm({ ...barberForm, nombre: event.target.value })} placeholder="Nombre" required />
             <input value={barberForm.telefono} onChange={(event) => setBarberForm({ ...barberForm, telefono: event.target.value })} placeholder="Telefono" />
+            <textarea value={barberForm.descripcion} onChange={(event) => setBarberForm({ ...barberForm, descripcion: event.target.value })} placeholder="Descripcion profesional visible en el inicio" rows="4" />
             <input value={barberForm.usuario} onChange={(event) => setBarberForm({ ...barberForm, usuario: event.target.value })} placeholder="Usuario" required />
             <input type="password" value={barberForm.password} onChange={(event) => setBarberForm({ ...barberForm, password: event.target.value })} placeholder={barberForm.id ? "Nueva contrasena (opcional)" : "Contrasena inicial"} required={!barberForm.id} />
             <select value={barberForm.estado} onChange={(event) => setBarberForm({ ...barberForm, estado: event.target.value })}>
@@ -248,9 +298,44 @@ export default function AdminManagement() {
           </form>
           <div className="mini-list">
             {barbers.map((barber) => (
-              <button type="button" key={barber.id} onClick={() => setBarberForm({ id: barber.id, nombre: barber.nombre, telefono: barber.telefono || "", estado: barber.estado, usuario: barber.usuario || "", password: "" })}>
+              <button type="button" key={barber.id} onClick={() => setBarberForm({ id: barber.id, nombre: barber.nombre, telefono: barber.telefono || "", descripcion: barber.descripcion || "", estado: barber.estado, usuario: barber.usuario || "", password: "" })}>
                 {barber.nombre} - {barber.usuario || "sin usuario"} - {barber.estado}
               </button>
+            ))}
+          </div>
+        </article>
+
+        <article className="management-card management-card-wide">
+          <h2>Galeria de fotos</h2>
+          {/* Administracion de fotos: permite agregar, editar y borrar imagenes usadas por los carruseles del inicio. */}
+          <form onSubmit={saveGallery} className="stack-form gallery-form">
+            <input value={galleryForm.titulo} onChange={(event) => setGalleryForm({ ...galleryForm, titulo: event.target.value })} placeholder="Titulo de la foto" required />
+            <input value={galleryForm.descripcion} onChange={(event) => setGalleryForm({ ...galleryForm, descripcion: event.target.value })} placeholder="Descripcion corta" />
+            <input value={galleryForm.image_url} onChange={(event) => setGalleryForm({ ...galleryForm, image_url: event.target.value })} placeholder="URL opcional, por ejemplo /fotos/work1.jpg" />
+            <input type="file" accept="image/png,image/jpeg,image/webp,image/gif" onChange={(event) => setGalleryForm({ ...galleryForm, file: event.target.files?.[0] || null })} />
+            <label className="check-row">
+              <input type="checkbox" checked={galleryForm.activo} onChange={(event) => setGalleryForm({ ...galleryForm, activo: event.target.checked })} />
+              Visible en carruseles
+            </label>
+            <div className="inline-actions">
+              <button type="submit">{galleryForm.id ? "Actualizar foto" : "Agregar foto"}</button>
+              {galleryForm.id && <button type="button" onClick={() => setGalleryForm(EMPTY_GALLERY)}>Nueva foto</button>}
+            </div>
+          </form>
+          <div className="gallery-admin-grid">
+            {gallery.map((photo) => (
+              <article className="gallery-admin-card" key={photo.id}>
+                <img src={photo.image_url?.startsWith("/api/") ? `${API_ORIGIN}${photo.image_url}` : photo.image_url} alt={photo.titulo} />
+                <div>
+                  <h3>{photo.titulo}</h3>
+                  <p>{photo.descripcion || "Sin descripcion"}</p>
+                  <span>{photo.activo ? "Visible" : "Oculta"}</span>
+                </div>
+                <div className="gallery-admin-actions">
+                  <button type="button" onClick={() => setGalleryForm({ ...photo, file: null })}>Editar</button>
+                  <button type="button" className="danger-lite" onClick={() => removeGalleryPhoto(photo.id)}>Borrar</button>
+                </div>
+              </article>
             ))}
           </div>
         </article>
@@ -339,7 +424,24 @@ export default function AdminManagement() {
         <article className="management-card">
           <h2>Configuracion</h2>
           <form onSubmit={saveSettings} className="stack-form">
-            {["facebook_followers", "instagram_followers", "tiktok_followers", "telefono_barberia", "horario_general", "recordatorio_horas_antes"].map((key) => (
+            {[
+              "facebook_followers",
+              "instagram_followers",
+              "tiktok_followers",
+              "stats_clients",
+              "stats_years",
+              "stats_styles",
+              "telefono_barberia",
+              "horario_general",
+              "recordatorio_horas_antes",
+              "social_facebook_url",
+              "social_instagram_url",
+              "social_whatsapp_url",
+              "location_map_embed_url",
+              "location_google_maps_url",
+              "location_waze_url",
+              "location_address",
+            ].map((key) => (
               <label key={key}>
                 {key}
                 <input value={settings[key] || ""} onChange={(event) => setSettings({ ...settings, [key]: event.target.value })} />

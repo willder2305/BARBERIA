@@ -8,6 +8,7 @@ CREATE TABLE IF NOT EXISTS barberos (
     id INT AUTO_INCREMENT PRIMARY KEY,
     nombre VARCHAR(100) NOT NULL,
     telefono VARCHAR(20),
+    descripcion TEXT NULL,
     estado ENUM('Activo', 'Inactivo') NOT NULL DEFAULT 'Activo',
     UNIQUE KEY uq_barberos_nombre (nombre)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -234,12 +235,25 @@ CREATE TABLE IF NOT EXISTS configuracion_sistema (
     UNIQUE KEY uq_configuracion_clave (clave)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO barberos (id, nombre, telefono, estado) VALUES
-(1, 'Luis', NULL, 'Activo'),
-(2, 'Douglas', NULL, 'Activo')
+CREATE TABLE IF NOT EXISTS galeria_fotos (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    titulo VARCHAR(120) NOT NULL,
+    descripcion VARCHAR(255) NULL,
+    image_url VARCHAR(255) NOT NULL,
+    filename VARCHAR(180) NULL,
+    activo TINYINT(1) NOT NULL DEFAULT 1,
+    creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    actualizado_en TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_galeria_image_url (image_url)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+INSERT INTO barberos (id, nombre, telefono, descripcion, estado) VALUES
+(1, 'Luis', NULL, 'Especialista en cortes modernos, degradados limpios y acabados detallados para un estilo fresco.', 'Activo'),
+(2, 'Douglas', NULL, 'Barbero enfocado en barba, perfilado clasico y asesoria personalizada para cada cliente.', 'Activo')
 ON DUPLICATE KEY UPDATE
     nombre = VALUES(nombre),
     telefono = VALUES(telefono),
+    descripcion = VALUES(descripcion),
     estado = VALUES(estado);
 
 INSERT INTO usuarios (nombre, usuario, pass_hash, rol, id_barbero, estado) VALUES
@@ -303,7 +317,29 @@ INSERT INTO configuracion_sistema (clave, valor, descripcion) VALUES
 ('facebook_followers', '150', 'Contador de seguidores de Facebook'),
 ('instagram_followers', '300', 'Contador de seguidores de Instagram'),
 ('tiktok_followers', '58', 'Contador de seguidores de TikTok'),
-('telefono_barberia', '36353527', 'Telefono principal de la barberia')
+('telefono_barberia', '36353527', 'Telefono principal de la barberia'),
+('social_facebook_url', 'https://facebook.com/', 'Enlace oficial de Facebook'),
+('social_instagram_url', 'https://instagram.com/', 'Enlace oficial de Instagram'),
+('social_whatsapp_url', 'https://wa.me/50236353527', 'Enlace wa.me de WhatsApp'),
+('location_map_embed_url', 'https://www.google.com/maps?q=Huehuetenango%2C%20Guatemala&output=embed', 'URL embebida del mapa'),
+('location_google_maps_url', 'https://www.google.com/maps/search/?api=1&query=Huehuetenango%2C%20Guatemala', 'Enlace directo de Google Maps'),
+('location_waze_url', 'https://waze.com/ul?q=Huehuetenango%2C%20Guatemala&navigate=yes', 'Enlace directo de Waze'),
+('location_address', 'Huehuetenango, Guatemala', 'Direccion textual del negocio'),
+('stats_clients', '500', 'Numero final para contador de clientes'),
+('stats_years', '5', 'Numero final para contador de anos de experiencia'),
+('stats_styles', '1200', 'Numero final para contador de estilos realizados')
 ON DUPLICATE KEY UPDATE
     valor = VALUES(valor),
     descripcion = VALUES(descripcion);
+
+INSERT INTO galeria_fotos (titulo, descripcion, image_url, activo) VALUES
+('Trabajo 1', 'Corte realizado en Wicho''s Barber Shop', '/fotos/work1.jpg', 1),
+('Trabajo 2', 'Estilo profesional de barberia', '/fotos/work2.jpg', 1),
+('Trabajo 3', 'Detalle de corte y acabado', '/fotos/work3.jpg', 1),
+('Trabajo 4', 'Resultado de servicio activo', '/fotos/work4.jpg', 1),
+('Trabajo 5', 'Galeria de trabajos recientes', '/fotos/work5.jpg', 1),
+('Trabajo 6', 'Corte moderno y definido', '/fotos/work6.jpg', 1)
+ON DUPLICATE KEY UPDATE
+    titulo = VALUES(titulo),
+    descripcion = VALUES(descripcion),
+    activo = VALUES(activo);

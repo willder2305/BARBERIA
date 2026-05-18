@@ -1,6 +1,10 @@
-from flask import Blueprint, request
+import uuid
+from pathlib import Path
+
+from flask import Blueprint, request, send_from_directory
 from pymysql.err import IntegrityError
 from werkzeug.security import generate_password_hash
+from werkzeug.utils import secure_filename
 
 from ..db import db_cursor
 from ..responses import fail, ok
@@ -8,9 +12,74 @@ from ..security import ROLE_ADMIN, require_roles
 
 catalog_bp = Blueprint("catalog", __name__)
 
+BACKEND_ROOT = Path(__file__).resolve().parents[2]
+GALLERY_UPLOAD_DIR = BACKEND_ROOT / "uploads" / "gallery"
+ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp", "gif"}
+ALLOWED_IMAGE_MIMES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+
 
 def clean(value):
     return str(value or "").strip()
+
+
+def ensure_content_schema(cursor):
+    """Asegura las columnas/tablas de contenido editable sin romper bases existentes."""
+    cursor.execute(
+        """
+        SELECT COUNT(*) AS total
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_SCHEMA = DATABASE()
+          AND TABLE_NAME = 'barberos'
+          AND COLUMN_NAME = 'descripcion'
+        """
+    )
+    if not cursor.fetchone()["total"]:
+        cursor.execute("ALTER TABLE barberos ADD COLUMN descripcion TEXT NULL AFTER telefono")
+
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS galeria_fotos (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            titulo VARCHAR(120) NOT NULL,
+            descripcion VARCHAR(255) NULL,
+            image_url VARCHAR(255) NOT NULL,
+            filename VARCHAR(180) NULL,
+            activo TINYINT(1) NOT NULL DEFAULT 1,
+            creado_en TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            actualizado_en TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
+            UNIQUE KEY uq_galeria_image_url (image_url)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+        """
+    )
+
+
+def gallery_row(row):
+    """Normaliza una fila de galeria para el contrato JSON usado por React."""
+    return {
+        "id": int(row["id"]),
+        "titulo": row["titulo"],
+        "descripcion": row.get("descripcion") or "",
+        "image_url": row["image_url"],
+        "filename": row.get("filename") or "",
+        "activo": bool(row.get("activo")),
+    }
+
+
+def allowed_image(file_storage):
+    """Valida extension y mimetype antes de guardar archivos subidos por admin."""
+    filename = secure_filename(file_storage.filename or "")
+    extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+    return extension in ALLOWED_IMAGE_EXTENSIONS and file_storage.mimetype in ALLOWED_IMAGE_MIMES
+
+
+def save_gallery_file(file_storage):
+    """Guarda una imagen de galeria con nombre unico y devuelve su URL publica."""
+    GALLERY_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+    original = secure_filename(file_storage.filename or "foto.jpg")
+    extension = original.rsplit(".", 1)[-1].lower()
+    filename = f"{uuid.uuid4().hex}.{extension}"
+    file_storage.save(GALLERY_UPLOAD_DIR / filename)
+    return filename, f"/api/gallery/files/{filename}"
 
 
 def parse_bool(value):
@@ -69,10 +138,11 @@ def list_barbers():
     """Lista barberos activos para reserva y todos para admin."""
     include_inactive = request.args.get("include_inactive") == "1"
     where = "" if include_inactive else "WHERE b.estado = 'Activo'"
-    with db_cursor() as cursor:
+    with db_cursor(commit=True) as cursor:
+        ensure_content_schema(cursor)
         cursor.execute(
             f"""
-            SELECT b.id, b.nombre, b.telefono, b.estado, u.usuario
+            SELECT b.id, b.nombre, b.telefono, b.descripcion, b.estado, u.usuario
             FROM barberos b
             LEFT JOIN usuarios u ON u.id_barbero = b.id AND u.rol = 'Barbero'
             {where}
@@ -89,12 +159,14 @@ def create_barber():
     data = request.get_json(silent=True) or request.form
     nombre = clean(data.get("nombre"))
     telefono = clean(data.get("telefono"))
+    descripcion = clean(data.get("descripcion"))
     usuario = clean(data.get("usuario")).lower()
     password = clean(data.get("password"))
     if not nombre or not usuario or not password:
         return fail("Nombre, usuario y contrasena son obligatorios.")
     try:
         with db_cursor(commit=True) as cursor:
+            ensure_content_schema(cursor)
             cursor.execute("SELECT id FROM usuarios WHERE usuario = %s LIMIT 1", (usuario,))
             if cursor.fetchone():
                 return fail("Ya existe un usuario con ese nombre.", 409)
@@ -102,8 +174,8 @@ def create_barber():
             if cursor.fetchone():
                 return fail("Ya existe un barbero con ese nombre.", 409)
             cursor.execute(
-                "INSERT INTO barberos (nombre, telefono, estado) VALUES (%s, %s, 'Activo')",
-                (nombre, telefono or None),
+                "INSERT INTO barberos (nombre, telefono, descripcion, estado) VALUES (%s, %s, %s, 'Activo')",
+                (nombre, telefono or None, descripcion or None),
             )
             barber_id = cursor.lastrowid
             cursor.execute(
@@ -124,6 +196,7 @@ def update_barber(barber_id):
     data = request.get_json(silent=True) or request.form
     nombre = clean(data.get("nombre"))
     telefono = clean(data.get("telefono"))
+    descripcion = clean(data.get("descripcion"))
     estado = clean(data.get("estado")) or "Activo"
     usuario = clean(data.get("usuario")).lower()
     password = clean(data.get("password"))
@@ -133,6 +206,7 @@ def update_barber(barber_id):
         return fail("El nombre es obligatorio.")
     try:
         with db_cursor(commit=True) as cursor:
+            ensure_content_schema(cursor)
             if usuario:
                 cursor.execute(
                     """
@@ -147,8 +221,8 @@ def update_barber(barber_id):
                     return fail("Ya existe un usuario con ese nombre.", 409)
 
             cursor.execute(
-                "UPDATE barberos SET nombre = %s, telefono = %s, estado = %s WHERE id = %s",
-                (nombre, telefono or None, estado, barber_id),
+                "UPDATE barberos SET nombre = %s, telefono = %s, descripcion = %s, estado = %s WHERE id = %s",
+                (nombre, telefono or None, descripcion or None, estado, barber_id),
             )
             if cursor.rowcount == 0:
                 return fail("Barbero no encontrado.", 404)
@@ -321,6 +395,16 @@ def update_settings():
         "telefono_barberia": "Telefono principal de la barberia",
         "horario_general": "Horario general usado para agenda de barberos",
         "recordatorio_horas_antes": "Horas antes para recordatorio por WhatsApp",
+        "social_facebook_url": "Enlace oficial de Facebook",
+        "social_instagram_url": "Enlace oficial de Instagram",
+        "social_whatsapp_url": "Enlace wa.me de WhatsApp",
+        "location_map_embed_url": "URL embebida del mapa",
+        "location_google_maps_url": "Enlace directo de Google Maps",
+        "location_waze_url": "Enlace directo de Waze",
+        "location_address": "Direccion textual del negocio",
+        "stats_clients": "Numero final para contador de clientes",
+        "stats_years": "Numero final para contador de anos de experiencia",
+        "stats_styles": "Numero final para contador de estilos realizados",
     }
     with db_cursor(commit=True) as cursor:
         for key, value in data.items():
@@ -335,6 +419,120 @@ def update_settings():
                 (key, clean(value), allowed[key]),
             )
     return ok({"message": "Configuracion actualizada."})
+
+
+@catalog_bp.get("/gallery")
+def list_gallery():
+    """Lista fotos activas para el inicio o todas cuando el admin lo solicita."""
+    include_inactive = request.args.get("include_inactive") == "1"
+    where = "" if include_inactive else "WHERE activo = 1"
+    with db_cursor(commit=True) as cursor:
+        ensure_content_schema(cursor)
+        cursor.execute(
+            f"""
+            SELECT id, titulo, descripcion, image_url, filename, activo
+            FROM galeria_fotos
+            {where}
+            ORDER BY id DESC
+            """
+        )
+        rows = cursor.fetchall()
+    return ok([gallery_row(row) for row in rows])
+
+
+@catalog_bp.get("/gallery/files/<path:filename>")
+def gallery_file(filename):
+    """Sirve imagenes subidas por el administrador desde una carpeta controlada."""
+    safe_name = secure_filename(filename)
+    return send_from_directory(GALLERY_UPLOAD_DIR, safe_name)
+
+
+@catalog_bp.post("/gallery")
+@require_roles(ROLE_ADMIN)
+def create_gallery_item():
+    """Registra una nueva imagen en la galeria con validacion de archivo."""
+    title = clean(request.form.get("titulo")) or "Foto de barberia"
+    description = clean(request.form.get("descripcion"))
+    active = parse_bool(request.form.get("activo", "1"))
+    file_storage = request.files.get("file")
+    image_url = clean(request.form.get("image_url"))
+    filename = None
+
+    if file_storage and file_storage.filename:
+        if not allowed_image(file_storage):
+            return fail("La foto debe ser JPG, PNG, WEBP o GIF.")
+        filename, image_url = save_gallery_file(file_storage)
+    if not image_url:
+        return fail("Debe adjuntar una imagen o indicar una URL valida.")
+
+    with db_cursor(commit=True) as cursor:
+        ensure_content_schema(cursor)
+        cursor.execute(
+            """
+            INSERT INTO galeria_fotos (titulo, descripcion, image_url, filename, activo)
+            VALUES (%s, %s, %s, %s, %s)
+            """,
+            (title, description or None, image_url, filename, active),
+        )
+    return ok({"message": "Foto agregada."}, 201)
+
+
+@catalog_bp.put("/gallery/<int:photo_id>")
+@require_roles(ROLE_ADMIN)
+def update_gallery_item(photo_id):
+    """Actualiza titulo, descripcion, estado y opcionalmente reemplaza la imagen."""
+    title = clean(request.form.get("titulo")) or "Foto de barberia"
+    description = clean(request.form.get("descripcion"))
+    active = parse_bool(request.form.get("activo", "1"))
+    file_storage = request.files.get("file")
+    image_url = clean(request.form.get("image_url"))
+    filename = None
+
+    with db_cursor(commit=True) as cursor:
+        ensure_content_schema(cursor)
+        cursor.execute("SELECT filename, image_url FROM galeria_fotos WHERE id = %s", (photo_id,))
+        current = cursor.fetchone()
+        if not current:
+            return fail("Foto no encontrada.", 404)
+
+        if file_storage and file_storage.filename:
+            if not allowed_image(file_storage):
+                return fail("La foto debe ser JPG, PNG, WEBP o GIF.")
+            filename, image_url = save_gallery_file(file_storage)
+        else:
+            filename = current.get("filename")
+            image_url = image_url or current["image_url"]
+
+        cursor.execute(
+            """
+            UPDATE galeria_fotos
+            SET titulo = %s, descripcion = %s, image_url = %s, filename = %s, activo = %s
+            WHERE id = %s
+            """,
+            (title, description or None, image_url, filename, active, photo_id),
+        )
+    return ok({"message": "Foto actualizada."})
+
+
+@catalog_bp.delete("/gallery/<int:photo_id>")
+@require_roles(ROLE_ADMIN)
+def delete_gallery_item(photo_id):
+    """Elimina el registro de galeria y borra el archivo local si existe."""
+    with db_cursor(commit=True) as cursor:
+        ensure_content_schema(cursor)
+        cursor.execute("SELECT filename FROM galeria_fotos WHERE id = %s", (photo_id,))
+        current = cursor.fetchone()
+        if not current:
+            return fail("Foto no encontrada.", 404)
+        cursor.execute("DELETE FROM galeria_fotos WHERE id = %s", (photo_id,))
+
+    filename = current.get("filename")
+    if filename:
+        try:
+            (GALLERY_UPLOAD_DIR / secure_filename(filename)).unlink(missing_ok=True)
+        except OSError:
+            pass
+    return ok({"message": "Foto eliminada."})
 
 
 @catalog_bp.get("/blocked-days")

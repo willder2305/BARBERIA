@@ -630,3 +630,57 @@ Caracteres raros en `No asistio`:
 - Mantener telefono como exactamente 8 digitos numericos.
 - Mantener el CSV `GET /api/reports/export` como legado hasta decidir formalmente si se elimina.
 - Antes de commitear, revisar `git diff` porque hay cambios acumulados de varias etapas.
+
+## Actualizacion `fronted-completo`
+
+Esta rama agrega una mejora visual y administrativa enfocada en la pagina principal y en contenido editable desde el panel admin.
+
+Alcance previsto:
+
+- nota informativa debajo del horario de atencion;
+- botones funcionales para Facebook, Instagram y WhatsApp;
+- configuracion comentada de enlaces de redes sociales;
+- seccion de ubicacion con mapa, boton de Google Maps y boton de Waze;
+- configuracion comentada de mapa, Google Maps, Waze y direccion textual;
+- footer responsivo conservando el credito de desarrollo;
+- correccion de recortes, espaciados y contenedores del inicio;
+- seccion de amenidades separada de servicios;
+- servicios presentados como bloque visual propio usando datos reales cuando la API responda;
+- carruseles esteticos en secciones con fondo/blur;
+- controles de carrusel mas estables en desktop y movil;
+- administracion de fotos desde `/admin/gestion`: agregar, editar y borrar;
+- textos profesionales diferentes para cada barbero;
+- edicion de descripcion de barberos desde administracion;
+- conteo animado desde 0 hasta el valor configurado;
+- comentarios de configuracion y bloques principales en frontend y backend;
+- validacion de enlaces externos con `target="_blank"` y `rel="noopener noreferrer"`;
+- validacion de imagenes por extension y tipo permitido.
+
+Nuevos endpoints previstos:
+
+- `GET /api/gallery`
+- `POST /api/gallery`
+- `PUT /api/gallery/<id>`
+- `DELETE /api/gallery/<id>`
+
+Base de datos prevista:
+
+- nueva tabla `galeria_fotos` para imagenes administrables;
+- nuevo campo `descripcion` en `barberos` para textos editables.
+
+Migracion de esta rama:
+
+```powershell
+C:\xampp\mysql\bin\mysql.exe -uroot -e "source C:/dev/BARBERIA/backend/database/migrations/actualizacion_4_fronted_completo.sql"
+```
+
+El backend tambien asegura estas estructuras al usar las rutas de catalogo/galeria, para mantener compatibilidad con bases que aun no tengan la migracion aplicada.
+
+Verificacion esperada al cerrar esta rama:
+
+- `backend\.venv\Scripts\python.exe -m compileall backend\app backend\scripts`
+- `npm.cmd run build`
+- prueba visual en desktop, tablet y movil de `/`, `/admin/gestion`, `/reservas`, `/login`, `/reportes` y `/barberos/luis`;
+- prueba admin de agregar, editar y borrar foto;
+- prueba admin de editar descripcion de barbero;
+- confirmacion de que redes, Google Maps, Waze y WhatsApp abren correctamente.

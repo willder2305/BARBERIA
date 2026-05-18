@@ -16,13 +16,24 @@ async function parseResponse(response) {
 
 // Ejecuta una peticion HTTP JSON contra Flask.
 async function request(path, options = {}) {
+  const headers = { ...(options.headers || {}) };
+  if (options.body && !headers["Content-Type"]) {
+    headers["Content-Type"] = "application/json";
+  }
   const response = await fetch(endpoint(path), {
     credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      ...(options.headers || {}),
-    },
+    headers,
     ...options,
+  });
+  return parseResponse(response);
+}
+
+// Ejecuta peticiones multipart para subir imagenes sin forzar Content-Type.
+async function requestForm(path, formData, method = "POST") {
+  const response = await fetch(endpoint(path), {
+    method,
+    credentials: "include",
+    body: formData,
   });
   return parseResponse(response);
 }
@@ -114,6 +125,24 @@ export function deleteBlockedDay(id) {
 export function getSchedules(barberId = 0) {
   const suffix = barberId ? `?barbero_id=${barberId}` : "";
   return request(`/schedules${suffix}`);
+}
+
+export function getGallery(includeInactive = false) {
+  return request(`/gallery${includeInactive ? "?include_inactive=1" : ""}`);
+}
+
+export function createGalleryItem(formData) {
+  return requestForm("/gallery", formData, "POST");
+}
+
+export function updateGalleryItem(id, formData) {
+  return requestForm(`/gallery/${id}`, formData, "PUT");
+}
+
+export function deleteGalleryItem(id) {
+  return request(`/gallery/${id}`, {
+    method: "DELETE",
+  });
 }
 
 export function updateSchedules(data) {
