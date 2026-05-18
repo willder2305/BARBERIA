@@ -5,7 +5,7 @@ export default function SiteFooter() {
       <div className="container">
         <p>
           Copyright © 2025 <span className="brand">Wicho's Barber Shop</span> |
-          Desarrollado por <a href="#" className="author" aria-label="Desarrollado por Luis Merida">Luis Mérida</a>
+          Desarrollado por <a href="#" className="author" aria-label="Desarrollado por FWL systems pro +">FWL systems pro +</a>
         </p>
         <p className="rights">Todos los derechos reservados.</p>
       </div>
