@@ -11,6 +11,18 @@ def clean(value):
     return str(value or "").strip()
 
 
+def parse_inventory_numbers(data):
+    """Convierte y valida numeros de inventario antes de modificar la base."""
+    try:
+        return {
+            "cantidad": int(data.get("cantidad") or 0),
+            "precio_venta": float(data.get("precio_venta") or 0),
+            "stock_minimo": int(data.get("stock_minimo") or 0),
+        }, None
+    except (TypeError, ValueError):
+        return None, "Cantidad, precio y stock minimo deben ser numericos."
+
+
 def item_from_row(row):
     """Convierte una fila de inventario al contrato JSON del frontend."""
     stock = int(row["cantidad"] or 0)
@@ -51,10 +63,13 @@ def create_inventory_item():
     data = request.get_json(silent=True) or request.form
     nombre = clean(data.get("nombre"))
     descripcion = clean(data.get("descripcion"))
-    cantidad = int(data.get("cantidad") or 0)
+    numbers, error = parse_inventory_numbers(data)
+    if error:
+        return fail(error)
+    cantidad = numbers["cantidad"]
     unidad = clean(data.get("unidad"))
-    precio_venta = float(data.get("precio_venta") or 0)
-    stock_minimo = int(data.get("stock_minimo") or 0)
+    precio_venta = numbers["precio_venta"]
+    stock_minimo = numbers["stock_minimo"]
     if not nombre:
         return fail("El nombre del producto es obligatorio.")
     if cantidad < 0 or stock_minimo < 0:
@@ -79,10 +94,13 @@ def update_inventory_item(item_id):
     data = request.get_json(silent=True) or request.form
     nombre = clean(data.get("nombre"))
     descripcion = clean(data.get("descripcion"))
-    cantidad = int(data.get("cantidad") or 0)
+    numbers, error = parse_inventory_numbers(data)
+    if error:
+        return fail(error)
+    cantidad = numbers["cantidad"]
     unidad = clean(data.get("unidad"))
-    precio_venta = float(data.get("precio_venta") or 0)
-    stock_minimo = int(data.get("stock_minimo") or 0)
+    precio_venta = numbers["precio_venta"]
+    stock_minimo = numbers["stock_minimo"]
     estado = clean(data.get("estado")) or "Activo"
     if estado not in {"Activo", "Inactivo"}:
         return fail("Estado invalido.")
@@ -121,7 +139,10 @@ def deactivate_inventory_item(item_id):
 def register_sale(item_id):
     """Registra una venta y descuenta stock de forma transaccional."""
     data = request.get_json(silent=True) or request.form
-    cantidad = int(data.get("cantidad") or 0)
+    try:
+        cantidad = int(data.get("cantidad") or 0)
+    except (TypeError, ValueError):
+        return fail("La cantidad vendida debe ser numerica.")
     user = current_user()
     if cantidad <= 0:
         return fail("La cantidad vendida debe ser mayor que cero.")

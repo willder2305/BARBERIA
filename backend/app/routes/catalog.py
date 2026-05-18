@@ -1,21 +1,22 @@
 import uuid
 from pathlib import Path
+from urllib.parse import urlparse
 
 from flask import Blueprint, request, send_from_directory
 from pymysql.err import IntegrityError
-from werkzeug.security import generate_password_hash
 from werkzeug.utils import secure_filename
 
 from ..db import db_cursor
 from ..responses import fail, ok
-from ..security import ROLE_ADMIN, require_roles
+from ..security import ROLE_ADMIN, hash_password, require_admin_when, require_roles, validate_password_strength
 
 catalog_bp = Blueprint("catalog", __name__)
 
 BACKEND_ROOT = Path(__file__).resolve().parents[2]
 GALLERY_UPLOAD_DIR = BACKEND_ROOT / "uploads" / "gallery"
-ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp", "gif"}
-ALLOWED_IMAGE_MIMES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
+ALLOWED_IMAGE_MIMES = {"image/jpeg", "image/png", "image/webp"}
+MAX_IMAGE_BYTES = 4 * 1024 * 1024
 DEFAULT_SETTINGS = {
     "facebook_followers": ("150", "Contador de seguidores de Facebook"),
     "instagram_followers": ("300", "Contador de seguidores de Instagram"),
@@ -32,6 +33,26 @@ DEFAULT_SETTINGS = {
 
 def clean(value):
     return str(value or "").strip()
+
+
+def valid_url(value, allowed_hosts=()):
+    """Valida URLs administrativas para evitar enlaces mal formados o javascript:."""
+    raw = clean(value)
+    if not raw:
+        return True
+    parsed = urlparse(raw)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return False
+    return not allowed_hosts or any(parsed.netloc.lower().endswith(host) for host in allowed_hosts)
+
+
+def valid_int_range(value, minimum=0, maximum=999999):
+    """Normaliza contadores y numeros configurables recibidos desde admin."""
+    try:
+        number = int(clean(value))
+    except ValueError:
+        return False
+    return minimum <= number <= maximum
 
 
 def ensure_content_schema(cursor):
@@ -105,10 +126,11 @@ def gallery_row(row):
 
 
 def allowed_image(file_storage):
-    """Valida extension y mimetype antes de guardar archivos subidos por admin."""
+    """Valida extension, MIME y tamano antes de guardar archivos subidos por admin."""
     filename = secure_filename(file_storage.filename or "")
     extension = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
-    return extension in ALLOWED_IMAGE_EXTENSIONS and file_storage.mimetype in ALLOWED_IMAGE_MIMES
+    content_length = getattr(file_storage, "content_length", 0) or request.content_length or 0
+    return extension in ALLOWED_IMAGE_EXTENSIONS and file_storage.mimetype in ALLOWED_IMAGE_MIMES and content_length <= MAX_IMAGE_BYTES
 
 
 def save_gallery_file(file_storage):
@@ -176,6 +198,9 @@ def validate_schedule_rows(rows):
 def list_barbers():
     """Lista barberos activos para reserva y todos para admin."""
     include_inactive = request.args.get("include_inactive") == "1"
+    admin_error = require_admin_when(include_inactive)
+    if admin_error:
+        return admin_error
     where = "" if include_inactive else "WHERE b.estado = 'Activo'"
     try:
         with db_cursor(commit=True) as cursor:
@@ -198,6 +223,7 @@ def list_barbers():
 @catalog_bp.post("/barbers")
 @require_roles(ROLE_ADMIN)
 def create_barber():
+    """Crea barbero y usuario asociado; solo admin puede ejecutar esta accion."""
     data = request.get_json(silent=True) or request.form
     nombre = clean(data.get("nombre"))
     telefono = clean(data.get("telefono"))
@@ -206,6 +232,9 @@ def create_barber():
     password = clean(data.get("password"))
     if not nombre or not usuario or not password:
         return fail("Nombre, usuario y contrasena son obligatorios.")
+    password_error = validate_password_strength(password)
+    if password_error:
+        return fail(password_error)
     try:
         with db_cursor(commit=True) as cursor:
             ensure_content_schema(cursor)
@@ -225,7 +254,7 @@ def create_barber():
                 INSERT INTO usuarios (nombre, usuario, pass_hash, rol, id_barbero, estado)
                 VALUES (%s, %s, %s, 'Barbero', %s, 'Activo')
                 """,
-                (nombre, usuario, generate_password_hash(password), barber_id),
+                (nombre, usuario, hash_password(password), barber_id),
             )
     except IntegrityError:
         return fail("No se pudo crear: el barbero o usuario ya existe.", 409)
@@ -235,6 +264,7 @@ def create_barber():
 @catalog_bp.put("/barbers/<int:barber_id>")
 @require_roles(ROLE_ADMIN)
 def update_barber(barber_id):
+    """Actualiza barbero y credenciales asociadas sin devolver contrasenas."""
     data = request.get_json(silent=True) or request.form
     nombre = clean(data.get("nombre"))
     telefono = clean(data.get("telefono"))
@@ -246,6 +276,10 @@ def update_barber(barber_id):
         return fail("Estado invalido.")
     if not nombre:
         return fail("El nombre es obligatorio.")
+    if password:
+        password_error = validate_password_strength(password)
+        if password_error:
+            return fail(password_error)
     try:
         with db_cursor(commit=True) as cursor:
             ensure_content_schema(cursor)
@@ -276,7 +310,7 @@ def update_barber(barber_id):
                 params.append(usuario)
             if password:
                 updates.append("pass_hash = %s")
-                params.append(generate_password_hash(password))
+                params.append(hash_password(password))
             params.append(barber_id)
             cursor.execute(
                 f"UPDATE usuarios SET {', '.join(updates)} WHERE id_barbero = %s AND rol = 'Barbero'",
@@ -288,7 +322,7 @@ def update_barber(barber_id):
                     INSERT INTO usuarios (nombre, usuario, pass_hash, rol, id_barbero, estado)
                     VALUES (%s, %s, %s, 'Barbero', %s, %s)
                     """,
-                    (nombre, usuario, generate_password_hash(password), barber_id, estado),
+                    (nombre, usuario, hash_password(password), barber_id, estado),
                 )
     except IntegrityError:
         return fail("No se pudo actualizar: el barbero o usuario ya existe.", 409)
@@ -297,7 +331,11 @@ def update_barber(barber_id):
 
 @catalog_bp.get("/services")
 def list_services():
+    """Lista servicios publicos; los inactivos solo son visibles para admin."""
     include_inactive = request.args.get("include_inactive") == "1"
+    admin_error = require_admin_when(include_inactive)
+    if admin_error:
+        return admin_error
     where = "" if include_inactive else "WHERE estado = 'Activo'"
     try:
         with db_cursor() as cursor:
@@ -319,9 +357,13 @@ def list_services():
 @catalog_bp.post("/services")
 @require_roles(ROLE_ADMIN)
 def create_service():
+    """Crea un servicio del catalogo tras validar datos administrables."""
     data = request.get_json(silent=True) or request.form
     nombre = clean(data.get("nombre"))
-    precio = float(data.get("precio") or 0)
+    try:
+        precio = float(data.get("precio") or 0)
+    except (TypeError, ValueError):
+        return fail("Precio invalido.")
     descripcion = clean(data.get("descripcion"))
     requires_gap = 1 if data.get("requiere_separacion") else 0
     if not nombre or precio < 0:
@@ -341,9 +383,13 @@ def create_service():
 @catalog_bp.put("/services/<int:service_id>")
 @require_roles(ROLE_ADMIN)
 def update_service(service_id):
+    """Actualiza servicio existente; protegido por rol Admin."""
     data = request.get_json(silent=True) or request.form
     nombre = clean(data.get("nombre"))
-    precio = float(data.get("precio") or 0)
+    try:
+        precio = float(data.get("precio") or 0)
+    except (TypeError, ValueError):
+        return fail("Precio invalido.")
     estado = clean(data.get("estado")) or "Activo"
     descripcion = clean(data.get("descripcion"))
     requires_gap = 1 if data.get("requiere_separacion") else 0
@@ -436,6 +482,7 @@ def list_settings():
 @catalog_bp.put("/settings")
 @require_roles(ROLE_ADMIN)
 def update_settings():
+    """Actualiza configuracion editable validando formatos antes de guardar."""
     data = request.get_json(silent=True) or {}
     allowed = {
         "facebook_followers": "Contador de seguidores de Facebook",
@@ -456,11 +503,33 @@ def update_settings():
         "stats_years": "Numero final para contador de anos de experiencia",
         "stats_styles": "Numero final para contador de estilos realizados",
     }
+    numeric_keys = {
+        "facebook_followers",
+        "instagram_followers",
+        "whatsapp_followers",
+        "tiktok_followers",
+        "stats_clients",
+        "stats_years",
+        "stats_styles",
+        "recordatorio_horas_antes",
+    }
+    url_rules = {
+        "social_facebook_url": ("facebook.com",),
+        "social_instagram_url": ("instagram.com",),
+        "social_whatsapp_url": ("wa.me", "whatsapp.com"),
+        "location_map_embed_url": ("google.com",),
+        "location_google_maps_url": ("google.com", "maps.app.goo.gl"),
+        "location_waze_url": ("waze.com",),
+    }
     with db_cursor(commit=True) as cursor:
         ensure_default_settings(cursor)
         for key, value in data.items():
             if key not in allowed:
                 continue
+            if key in numeric_keys and not valid_int_range(value):
+                return fail(f"Valor numerico invalido para {key}.")
+            if key in url_rules and not valid_url(value, url_rules[key]):
+                return fail(f"URL invalida para {key}.")
             cursor.execute(
                 """
                 INSERT INTO configuracion_sistema (clave, valor, descripcion)
@@ -476,6 +545,9 @@ def update_settings():
 def list_gallery():
     """Lista fotos activas para el inicio o todas cuando el admin lo solicita."""
     include_inactive = request.args.get("include_inactive") == "1"
+    admin_error = require_admin_when(include_inactive)
+    if admin_error:
+        return admin_error
     where = "" if include_inactive else "WHERE activo = 1"
     try:
         with db_cursor(commit=True) as cursor:
@@ -514,7 +586,7 @@ def create_gallery_item():
 
     if file_storage and file_storage.filename:
         if not allowed_image(file_storage):
-            return fail("La foto debe ser JPG, PNG, WEBP o GIF.")
+            return fail("La foto debe ser JPG, PNG o WEBP y pesar menos de 4 MB.")
         filename, image_url = save_gallery_file(file_storage)
     if not image_url:
         return fail("Debe adjuntar una imagen o indicar una URL valida.")
@@ -551,7 +623,7 @@ def update_gallery_item(photo_id):
 
         if file_storage and file_storage.filename:
             if not allowed_image(file_storage):
-                return fail("La foto debe ser JPG, PNG, WEBP o GIF.")
+                return fail("La foto debe ser JPG, PNG o WEBP y pesar menos de 4 MB.")
             filename, image_url = save_gallery_file(file_storage)
         else:
             filename = current.get("filename")

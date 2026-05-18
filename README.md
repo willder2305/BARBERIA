@@ -190,10 +190,12 @@ Tablas principales:
 Usuarios iniciales:
 
 ```text
-admin / abc123
-luis / abc123
-douglas / abc123
+admin
+luis
+douglas
 ```
+
+Las contrasenas iniciales no deben publicarse en el repositorio. Configuralas en un entorno local seguro y cambialas desde el panel administrativo.
 
 ## Ejecutar el sistema
 

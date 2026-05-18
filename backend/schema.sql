@@ -21,6 +21,8 @@ CREATE TABLE IF NOT EXISTS usuarios (
     rol ENUM('Admin', 'Barbero') NOT NULL,
     id_barbero INT NULL,
     estado ENUM('Activo', 'Inactivo') NOT NULL DEFAULT 'Activo',
+    fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    actualizado_en TIMESTAMP NULL DEFAULT NULL ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uq_usuarios_usuario (usuario),
     KEY idx_usuarios_barbero (id_barbero),
     CONSTRAINT fk_usuarios_barberos

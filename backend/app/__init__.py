@@ -30,4 +30,13 @@ def create_app():
     app.register_blueprint(reports_bp, url_prefix="/api/reports")
     app.register_blueprint(whatsapp_bp, url_prefix="/api/whatsapp")
 
+    @app.after_request
+    def add_security_headers(response):
+        """Agrega cabeceras basicas para reducir XSS, sniffing y framing."""
+        response.headers.setdefault("X-Content-Type-Options", "nosniff")
+        response.headers.setdefault("X-Frame-Options", "SAMEORIGIN")
+        response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+        response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        return response
+
     return app

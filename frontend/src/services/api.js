@@ -50,6 +50,13 @@ export function getMe() {
   return request("/auth/me");
 }
 
+// Cierra la sesion httpOnly mantenida por Flask.
+export function logout() {
+  return request("/auth/logout", {
+    method: "POST",
+  });
+}
+
 // Obtiene todas las reservas o las filtra por barbero.
 export function getReservations(barberId = 0) {
   const suffix = barberId ? `?barbero_id=${barberId}` : "";

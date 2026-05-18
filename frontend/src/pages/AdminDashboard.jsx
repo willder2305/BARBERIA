@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import LogoutButton from "../components/LogoutButton.jsx";
 import ReservationCalendar from "../components/ReservationCalendar.jsx";
 import ReservationDetailModal from "../components/ReservationDetailModal.jsx";
 import ReservationSidePanel from "../components/ReservationSidePanel.jsx";
@@ -65,6 +66,7 @@ export default function AdminDashboard() {
           <Link className="btn btn-outline-light" to="/inventario">Inventario</Link>
           <Link className="btn btn-outline-success" to="/reportes">Reportes</Link>
           <Link className="btn btn-outline-info" to="/admin/gestion">Gestion</Link>
+          <LogoutButton />
         </div>
       </nav>
       <div className="container mt-4 text-center">

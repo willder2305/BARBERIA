@@ -23,7 +23,7 @@ import {
 } from "../services/api.js";
 
 const EMPTY_SERVICE = { id: "", nombre: "", precio: "", descripcion: "", requiere_separacion: false, estado: "Activo" };
-const EMPTY_BARBER = { id: "", nombre: "", telefono: "", descripcion: "", usuario: "", password: "", estado: "Activo" };
+const EMPTY_BARBER = { id: "", nombre: "", telefono: "", descripcion: "", usuario: "", password: "", confirmPassword: "", estado: "Activo" };
 const EMPTY_BLOCK = { fecha: "", id_barbero: "", motivo: "" };
 const EMPTY_GALLERY = { id: "", titulo: "", descripcion: "", image_url: "", activo: true, file: null };
 const API_ORIGIN = (import.meta.env.VITE_API_URL || "http://127.0.0.1:5000/api").replace(/\/api\/?$/, "");
@@ -140,6 +140,13 @@ export default function AdminManagement() {
     event.preventDefault();
     try {
       const payload = { ...barberForm };
+      // La confirmacion evita enviar cambios de contrasena escritos por error.
+      if (payload.password && payload.password !== payload.confirmPassword) {
+        setMessageType("danger");
+        setMessage("La confirmacion de contrasena no coincide.");
+        return;
+      }
+      delete payload.confirmPassword;
       if (barberForm.id && !payload.password) {
         delete payload.password;
       }
@@ -309,6 +316,7 @@ export default function AdminManagement() {
             <textarea value={barberForm.descripcion} onChange={(event) => setBarberForm({ ...barberForm, descripcion: event.target.value })} placeholder="Descripcion profesional visible en el inicio" rows="4" />
             <input value={barberForm.usuario} onChange={(event) => setBarberForm({ ...barberForm, usuario: event.target.value })} placeholder="Usuario" required />
             <input type="password" value={barberForm.password} onChange={(event) => setBarberForm({ ...barberForm, password: event.target.value })} placeholder={barberForm.id ? "Nueva contrasena (opcional)" : "Contrasena inicial"} required={!barberForm.id} />
+            <input type="password" value={barberForm.confirmPassword} onChange={(event) => setBarberForm({ ...barberForm, confirmPassword: event.target.value })} placeholder="Confirmar contrasena" required={!barberForm.id || Boolean(barberForm.password)} />
             <select value={barberForm.estado} onChange={(event) => setBarberForm({ ...barberForm, estado: event.target.value })}>
               <option value="Activo">Activo</option>
               <option value="Inactivo">Inactivo</option>
@@ -317,7 +325,7 @@ export default function AdminManagement() {
           </form>
           <div className="mini-list">
             {barbers.map((barber) => (
-              <button type="button" key={barber.id} onClick={() => setBarberForm({ id: barber.id, nombre: barber.nombre, telefono: barber.telefono || "", descripcion: barber.descripcion || "", estado: barber.estado, usuario: barber.usuario || "", password: "" })}>
+              <button type="button" key={barber.id} onClick={() => setBarberForm({ id: barber.id, nombre: barber.nombre, telefono: barber.telefono || "", descripcion: barber.descripcion || "", estado: barber.estado, usuario: barber.usuario || "", password: "", confirmPassword: "" })}>
                 {barber.nombre} - {barber.usuario || "sin usuario"} - {barber.estado}
               </button>
             ))}

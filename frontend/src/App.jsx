@@ -22,6 +22,7 @@ function ProtectedRoute({ roles, children }) {
 
   useEffect(() => {
     let alive = true;
+    // Valida la cookie httpOnly contra backend antes de renderizar paneles privados.
     getMe()
       .then((user) => {
         if (alive) setState({ loading: false, user, error: "" });
@@ -44,6 +45,7 @@ function ProtectedRoute({ roles, children }) {
 
   if (!state.user) return <Navigate to="/login" replace />;
   if (roles?.length && !roles.includes(state.user.rol)) {
+    // Si la sesion existe pero el rol no alcanza, redirige a un panel seguro.
     return <Navigate to={dashboardFor(state.user)} replace />;
   }
   return children;

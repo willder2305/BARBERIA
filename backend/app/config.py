@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -13,12 +14,15 @@ def get_frontend_origins():
 
 
 class Config:
-    """Centraliza la configuracion leida desde variables de entorno."""
+    """Centraliza configuracion sensible leida desde variables de entorno."""
 
-    SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
+    # SECRET_KEY firma la cookie de sesion; en produccion debe venir de .env.
+    SECRET_KEY = os.getenv("SECRET_KEY") or os.urandom(32)
     SESSION_COOKIE_HTTPONLY = True
     SESSION_COOKIE_SAMESITE = os.getenv("SESSION_COOKIE_SAMESITE", "Lax")
     SESSION_COOKIE_SECURE = os.getenv("SESSION_COOKIE_SECURE", "false").lower() == "true"
+    PERMANENT_SESSION_LIFETIME = timedelta(minutes=int(os.getenv("SESSION_LIFETIME_MINUTES", "120")))
+    MAX_CONTENT_LENGTH = int(os.getenv("MAX_CONTENT_LENGTH", str(4 * 1024 * 1024)))
     FRONTEND_ORIGINS = get_frontend_origins()
     DB_HOST = os.getenv("DB_HOST", "localhost")
     DB_PORT = int(os.getenv("DB_PORT", "3306"))

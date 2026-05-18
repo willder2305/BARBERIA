@@ -1,8 +1,8 @@
 from flask import Blueprint, request, session
-from werkzeug.security import check_password_hash
 
 from ..db import db_cursor
 from ..responses import fail, ok
+from ..security import active_user_from_database, current_user, hash_password, looks_like_password_hash, verify_password
 
 auth_bp = Blueprint("auth", __name__)
 
@@ -20,7 +20,7 @@ def resolve_dashboard(user):
 
 @auth_bp.post("/login")
 def login():
-    """Valida credenciales y guarda usuario/rol en la sesion Flask."""
+    """Valida credenciales sin revelar si fallo usuario o contrasena."""
     data = request.get_json(silent=True) or request.form
     username = (data.get("usuario") or "").strip()
     password = (data.get("pass") or "").strip()
@@ -29,7 +29,7 @@ def login():
         return fail("Por favor completa todos los campos.")
 
     try:
-        with db_cursor() as cursor:
+        with db_cursor(commit=True) as cursor:
             cursor.execute(
                 """
                 SELECT id, usuario, pass_hash, rol, id_barbero
@@ -40,16 +40,25 @@ def login():
                 (username,),
             )
             user = cursor.fetchone()
+
+            # Compatibilidad controlada: si aparece una contrasena antigua en texto
+            # plano, se acepta una vez y se reemplaza inmediatamente por hash.
+            legacy_plaintext = bool(user and not looks_like_password_hash(user["pass_hash"]) and user["pass_hash"] == password)
+            valid_password = legacy_plaintext or (user and verify_password(user["pass_hash"], password))
+            if not valid_password:
+                return fail("Credenciales invalidas.", 401)
+
+            if legacy_plaintext:
+                cursor.execute("UPDATE usuarios SET pass_hash = %s WHERE id = %s", (hash_password(password), user["id"]))
     except Exception:
         return fail("No se pudo iniciar sesion porque la base de datos no esta disponible o sus credenciales son incorrectas.", 503)
-
-    if not user or not check_password_hash(user["pass_hash"], password):
-        return fail("Usuario o contrasena incorrectos.", 401)
 
     dashboard = resolve_dashboard(user)
     if not dashboard:
         return fail("Usuario sin panel asignado.", 403)
 
+    # La sesion usa cookie firmada httpOnly; Flask valida la firma en cada request.
+    session.permanent = True
     session["id_usuario"] = user["id"]
     session["usuario"] = user["usuario"]
     session["rol"] = user["rol"]
@@ -67,20 +76,29 @@ def login():
 
 @auth_bp.post("/logout")
 def logout():
-    """Cierra la sesion activa del usuario."""
+    """Cierra la sesion activa y elimina datos de usuario del navegador."""
     session.clear()
     return ok({"message": "Sesion cerrada"})
 
 
 @auth_bp.get("/me")
 def me():
-    """Devuelve los datos basicos del usuario autenticado en la sesion actual."""
-    if not session.get("usuario"):
-        return fail("No autenticado.", 401)
+    """Devuelve usuario autenticado para que React proteja rutas sin parpadeo."""
+    user = current_user()
+    if not user:
+        return fail("Debes iniciar sesion para acceder.", 401)
+    try:
+        user = active_user_from_database(user["id"])
+    except Exception:
+        return fail("No se pudo validar la sesion.", 503)
+    if not user:
+        session.clear()
+        return fail("Sesion expirada, inicia sesion nuevamente.", 401)
     return ok(
         {
-            "usuario": session["usuario"],
-            "rol": session["rol"],
-            "id_barbero": session.get("id_barbero"),
+            "id": user["id"],
+            "usuario": user["usuario"],
+            "rol": user["rol"],
+            "id_barbero": user.get("id_barbero"),
         }
     )

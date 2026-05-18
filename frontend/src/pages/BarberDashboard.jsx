@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import LogoutButton from "../components/LogoutButton.jsx";
 import ReservationCalendar from "../components/ReservationCalendar.jsx";
 import ReservationDetailModal from "../components/ReservationDetailModal.jsx";
 import ReservationSidePanel from "../components/ReservationSidePanel.jsx";
@@ -63,7 +64,10 @@ export default function BarberDashboard() {
     <main className="dashboard-page">
       <nav className="navbar navbar-dark bg-dark px-3">
         <span className="navbar-brand mb-0 h1 text-success">{barberName || "Barbero"}</span>
-        <button className="btn btn-outline-info" type="button" onClick={() => navigate("/reservas")}>+ Nueva Cita</button>
+        <div className="toolbar-actions">
+          <button className="btn btn-outline-info" type="button" onClick={() => navigate("/reservas")}>+ Nueva Cita</button>
+          <LogoutButton />
+        </div>
       </nav>
       <div className="container mt-4 text-center">
         <h2 className="text-luigi">Panel de {barberName || "Barbero"}</h2>
