@@ -196,7 +196,7 @@ export default function Home() {
         <div className="container social-layout">
           <div>
             <p className="eyebrow">Redes oficiales</p>
-            <h2>Conecta con Wicho's Barber Shop</h2>
+            <h2>Wicho's Barber Shop</h2>
           </div>
           <div className="social-actions" aria-label="Enlaces a redes sociales">
             <a href={socialLinks.facebook} target="_blank" rel="noopener noreferrer" className="social-link facebook">
@@ -223,7 +223,6 @@ export default function Home() {
 
       {/* Seccion institucional con tarjetas sencillas y legibles. */}
       <section id="about" className="about-section container text-center">
-        <p className="eyebrow dark">Identidad</p>
         <h2>Quienes Somos</h2>
         <div className="row">
           {[
@@ -246,7 +245,6 @@ export default function Home() {
         <div className="container">
           <p className="eyebrow">Servicios</p>
           <h2>Servicios del negocio</h2>
-          <p className="section-subtitle">Precios y disponibilidad conectados al panel administrador.</p>
           <div className="service-card-grid">
             {services.map((service) => (
               <article className="service-card-home" key={service.id}>
@@ -281,7 +279,6 @@ export default function Home() {
       {/* Carrusel de trabajos: usa galeria administrable con fallback a fotos locales. */}
       <section className="work-section text-center">
         <div className="container">
-          <p className="eyebrow dark">Galeria</p>
           <h2>Nuestro Trabajo</h2>
           <WorkCarousel images={galleryImages} />
         </div>
