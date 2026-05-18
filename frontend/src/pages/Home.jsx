@@ -261,13 +261,14 @@ export default function Home() {
       </BlurredCarouselSection>
 
       {/* Seccion de amenidades: beneficios del local separados de los servicios pagados. */}
-      <section className="amenities-section">
-        <div className="container text-center">
-          <p className="eyebrow dark">Amenidades</p>
+      <BlurredCarouselSection className="amenities-section text-center" images={blurredImages}>
+        <div className="container">
+          <p className="eyebrow">Amenidades</p>
           <h2>Comodidades durante tu visita</h2>
+          <p className="section-subtitle">Bebidas, snacks y videojuegos para una espera mas comoda.</p>
           <div className="amenities-grid">
             {amenities.map((item) => (
-              <article className="amenity-card" key={item.title}>
+              <article className="service-card-home amenity-card" key={item.title}>
                 <i className={`fa-solid ${item.icon}`} />
                 <h3>{item.title}</h3>
                 <p>{item.text}</p>
@@ -275,7 +276,7 @@ export default function Home() {
             ))}
           </div>
         </div>
-      </section>
+      </BlurredCarouselSection>
 
       {/* Carrusel de trabajos: usa galeria administrable con fallback a fotos locales. */}
       <section className="work-section text-center">

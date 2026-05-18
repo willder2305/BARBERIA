@@ -256,6 +256,7 @@ a {
 }
 
 .services-section h2,
+.amenities-section h2,
 .barbers-section h2,
 .cta-section h2,
 .text-luigi {
@@ -315,15 +316,11 @@ a {
 }
 
 .amenities-section {
-  background: #f7f8f5;
-  color: #141414;
-  padding: 74px 20px;
+  color: var(--blanco);
 }
 
 .amenity-card {
-  background: #fff;
-  border: 1px solid rgba(18, 20, 22, 0.08);
-  box-shadow: 0 16px 38px rgba(12, 31, 27, 0.1);
+  text-align: center;
 }
 
 .work-section {
