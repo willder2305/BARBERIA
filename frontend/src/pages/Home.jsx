@@ -52,10 +52,10 @@ const defaultSocialLinks = {
    Cambiar address por la direccion textual oficial del negocio.
 */
 const defaultLocationConfig = {
-  mapEmbedUrl: "https://www.google.com/maps?q=Huehuetenango%2C%20Guatemala&output=embed",
-  googleMapsUrl: "https://www.google.com/maps/search/?api=1&query=Huehuetenango%2C%20Guatemala",
-  wazeUrl: "https://waze.com/ul?q=Huehuetenango%2C%20Guatemala&navigate=yes",
-  address: "Huehuetenango, Guatemala",
+  mapEmbedUrl: "https://www.google.com/maps?q=15.3115042,-91.4783088&z=17&output=embed",
+  googleMapsUrl: "https://www.google.com/maps/place/Wicho%27s+Barbershop/@15.3115042,-91.4783088,17z/data=!3m1!4b1!4m6!3m5!1s0x858c15986e09fe0f:0xb0790cf30245b04e!8m2!3d15.3115042!4d-91.4783088!16s%2Fg%2F11vsppxdnj",
+  wazeUrl: "https://waze.com/ul?ll=15.3115042%2C-91.4783088&navigate=yes&zoom=17",
+  address: "Wicho's Barbershop, Huehuetenango, Guatemala",
 };
 
 const defaultStats = {
