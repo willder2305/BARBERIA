@@ -343,7 +343,8 @@ def list_users():
         cursor.execute(
             """
             SELECT u.id, u.nombre, u.usuario, u.rol, u.id_barbero, b.nombre AS barbero,
-                   u.estado, u.fecha_creacion, u.actualizado_en
+                   b.telefono AS barber_telefono, b.descripcion AS barber_descripcion,
+                   b.estado AS barber_estado, u.estado, u.fecha_creacion, u.actualizado_en
             FROM usuarios u
             LEFT JOIN barberos b ON b.id = u.id_barbero
             ORDER BY u.rol, u.usuario
@@ -365,7 +366,7 @@ def list_users():
 @catalog_bp.post("/users")
 @require_roles(ROLE_ADMIN)
 def create_user():
-    """Crea usuarios internos y guarda solo el hash de la contrasena asignada."""
+    """Crea usuarios internos; si es Barbero tambien crea/vincula su perfil."""
     data = request.get_json(silent=True) or request.form
     nombre = clean(data.get("nombre"))
     usuario = clean(data.get("usuario")).lower()
@@ -373,6 +374,8 @@ def create_user():
     estado = clean(data.get("estado")) or "Activo"
     password = clean(data.get("password"))
     id_barbero = data.get("id_barbero") or None
+    telefono = clean(data.get("telefono"))
+    descripcion = clean(data.get("descripcion"))
 
     if not nombre or not usuario or not password:
         return fail("Nombre, usuario y contrasena son obligatorios.")
@@ -385,17 +388,25 @@ def create_user():
     password_error = validate_password_strength(password)
     if password_error:
         return fail(password_error)
-    if rol == "Barbero" and not id_barbero:
-        return fail("Un usuario Barbero debe vincularse a un barbero.")
     if rol == ROLE_ADMIN:
         id_barbero = None
 
     try:
         with db_cursor(commit=True) as cursor:
-            if id_barbero:
-                cursor.execute("SELECT id FROM barberos WHERE id = %s", (id_barbero,))
-                if not cursor.fetchone():
-                    return fail("Barbero no encontrado.", 404)
+            if rol == "Barbero":
+                if id_barbero:
+                    cursor.execute("SELECT id FROM barberos WHERE id = %s", (id_barbero,))
+                    if not cursor.fetchone():
+                        return fail("Barbero no encontrado.", 404)
+                else:
+                    cursor.execute("SELECT id FROM barberos WHERE nombre = %s LIMIT 1", (nombre,))
+                    if cursor.fetchone():
+                        return fail("Ya existe un barbero con ese nombre.", 409)
+                    cursor.execute(
+                        "INSERT INTO barberos (nombre, telefono, descripcion, estado) VALUES (%s, %s, %s, %s)",
+                        (nombre, telefono or None, descripcion or None, estado),
+                    )
+                    id_barbero = cursor.lastrowid
                 cursor.execute("SELECT id FROM usuarios WHERE rol = 'Barbero' AND id_barbero = %s LIMIT 1", (id_barbero,))
                 if cursor.fetchone():
                     return fail("Ese barbero ya tiene un usuario asignado.", 409)
@@ -414,7 +425,7 @@ def create_user():
 @catalog_bp.put("/users/<int:user_id>")
 @require_roles(ROLE_ADMIN)
 def update_user(user_id):
-    """Actualiza usuario, rol, estado y opcionalmente su contrasena."""
+    """Actualiza usuario y, para rol Barbero, sincroniza el perfil de barbero."""
     data = request.get_json(silent=True) or request.form
     active_admin = current_user()
     nombre = clean(data.get("nombre"))
@@ -423,6 +434,8 @@ def update_user(user_id):
     estado = clean(data.get("estado")) or "Activo"
     password = clean(data.get("password"))
     id_barbero = data.get("id_barbero") or None
+    telefono = clean(data.get("telefono"))
+    descripcion = clean(data.get("descripcion"))
 
     if not nombre or not usuario:
         return fail("Nombre y usuario son obligatorios.")
@@ -438,17 +451,29 @@ def update_user(user_id):
             return fail(password_error)
     if int(active_admin["id"]) == int(user_id) and (rol != ROLE_ADMIN or estado != "Activo"):
         return fail("No puedes quitarte tus propios permisos de administrador.")
-    if rol == "Barbero" and not id_barbero:
-        return fail("Un usuario Barbero debe vincularse a un barbero.")
     if rol == ROLE_ADMIN:
         id_barbero = None
 
     try:
         with db_cursor(commit=True) as cursor:
-            if id_barbero:
-                cursor.execute("SELECT id FROM barberos WHERE id = %s", (id_barbero,))
-                if not cursor.fetchone():
-                    return fail("Barbero no encontrado.", 404)
+            if rol == "Barbero":
+                if id_barbero:
+                    cursor.execute("SELECT id FROM barberos WHERE id = %s", (id_barbero,))
+                    if not cursor.fetchone():
+                        return fail("Barbero no encontrado.", 404)
+                    cursor.execute(
+                        "UPDATE barberos SET nombre = %s, telefono = %s, descripcion = %s, estado = %s WHERE id = %s",
+                        (nombre, telefono or None, descripcion or None, estado, id_barbero),
+                    )
+                else:
+                    cursor.execute("SELECT id FROM barberos WHERE nombre = %s LIMIT 1", (nombre,))
+                    if cursor.fetchone():
+                        return fail("Ya existe un barbero con ese nombre.", 409)
+                    cursor.execute(
+                        "INSERT INTO barberos (nombre, telefono, descripcion, estado) VALUES (%s, %s, %s, %s)",
+                        (nombre, telefono or None, descripcion or None, estado),
+                    )
+                    id_barbero = cursor.lastrowid
                 cursor.execute(
                     "SELECT id FROM usuarios WHERE rol = 'Barbero' AND id_barbero = %s AND id <> %s LIMIT 1",
                     (id_barbero, user_id),

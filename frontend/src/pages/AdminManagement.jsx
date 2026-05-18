@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import PageHeader from "../components/PageHeader.jsx";
 import {
-  createBarber,
   createBlockedDay,
   createGalleryItem,
   createService,
@@ -17,7 +16,6 @@ import {
   getServices,
   getSettings,
   getUsers,
-  updateBarber,
   updateGalleryItem,
   updateSchedules,
   updateService,
@@ -26,8 +24,7 @@ import {
 } from "../services/api.js";
 
 const EMPTY_SERVICE = { id: "", nombre: "", precio: "", descripcion: "", requiere_separacion: false, estado: "Activo" };
-const EMPTY_BARBER = { id: "", nombre: "", telefono: "", descripcion: "", usuario: "", password: "", confirmPassword: "", estado: "Activo" };
-const EMPTY_USER = { id: "", nombre: "", usuario: "", rol: "Admin", id_barbero: "", estado: "Activo", password: "", confirmPassword: "" };
+const EMPTY_USER = { id: "", nombre: "", usuario: "", rol: "Admin", id_barbero: "", telefono: "", descripcion: "", estado: "Activo", password: "", confirmPassword: "" };
 const EMPTY_BLOCK = { fecha: "", id_barbero: "", motivo: "" };
 const EMPTY_GALLERY = { id: "", titulo: "", descripcion: "", image_url: "", activo: true, file: null };
 const API_ORIGIN = (import.meta.env.VITE_API_URL || "http://127.0.0.1:5000/api").replace(/\/api\/?$/, "");
@@ -66,7 +63,6 @@ export default function AdminManagement() {
   const [scheduleBarberId, setScheduleBarberId] = useState("");
   const [scheduleRows, setScheduleRows] = useState(DEFAULT_SCHEDULE_ROWS);
   const [serviceForm, setServiceForm] = useState(EMPTY_SERVICE);
-  const [barberForm, setBarberForm] = useState(EMPTY_BARBER);
   const [userForm, setUserForm] = useState(EMPTY_USER);
   const [blockForm, setBlockForm] = useState(EMPTY_BLOCK);
   const [message, setMessage] = useState("");
@@ -137,36 +133,6 @@ export default function AdminManagement() {
       }
       setMessageType("success");
       setServiceForm(EMPTY_SERVICE);
-      await loadAll();
-    } catch (err) {
-      setMessageType("danger");
-      setMessage(err.message);
-    }
-  }
-
-  async function saveBarber(event) {
-    event.preventDefault();
-    try {
-      const payload = { ...barberForm };
-      // La confirmacion evita enviar cambios de contrasena escritos por error.
-      if (payload.password && payload.password !== payload.confirmPassword) {
-        setMessageType("danger");
-        setMessage("La confirmacion de contrasena no coincide.");
-        return;
-      }
-      delete payload.confirmPassword;
-      if (barberForm.id && !payload.password) {
-        delete payload.password;
-      }
-      if (barberForm.id) {
-        await updateBarber(barberForm.id, payload);
-        setMessage(payload.password ? "Barbero y contrasena actualizados." : "Barbero actualizado.");
-      } else {
-        await createBarber(payload);
-        setMessage("Barbero creado.");
-      }
-      setMessageType("success");
-      setBarberForm(EMPTY_BARBER);
       await loadAll();
     } catch (err) {
       setMessageType("danger");
@@ -349,31 +315,7 @@ export default function AdminManagement() {
         </article>
 
         <article className="management-card">
-          <h2>Barberos</h2>
-          <form onSubmit={saveBarber} className="stack-form">
-            <input value={barberForm.nombre} onChange={(event) => setBarberForm({ ...barberForm, nombre: event.target.value })} placeholder="Nombre" required />
-            <input value={barberForm.telefono} onChange={(event) => setBarberForm({ ...barberForm, telefono: event.target.value })} placeholder="Telefono" />
-            <textarea value={barberForm.descripcion} onChange={(event) => setBarberForm({ ...barberForm, descripcion: event.target.value })} placeholder="Descripcion profesional visible en el inicio" rows="4" />
-            <input value={barberForm.usuario} onChange={(event) => setBarberForm({ ...barberForm, usuario: event.target.value })} placeholder="Usuario" required />
-            <input type="password" value={barberForm.password} onChange={(event) => setBarberForm({ ...barberForm, password: event.target.value })} placeholder={barberForm.id ? "Nueva contrasena (opcional)" : "Contrasena inicial"} required={!barberForm.id} />
-            <input type="password" value={barberForm.confirmPassword} onChange={(event) => setBarberForm({ ...barberForm, confirmPassword: event.target.value })} placeholder="Confirmar contrasena" required={!barberForm.id || Boolean(barberForm.password)} />
-            <select value={barberForm.estado} onChange={(event) => setBarberForm({ ...barberForm, estado: event.target.value })}>
-              <option value="Activo">Activo</option>
-              <option value="Inactivo">Inactivo</option>
-            </select>
-            <button type="submit">{barberForm.id ? "Actualizar" : "Crear"} barbero</button>
-          </form>
-          <div className="mini-list">
-            {barbers.map((barber) => (
-              <button type="button" key={barber.id} onClick={() => setBarberForm({ id: barber.id, nombre: barber.nombre, telefono: barber.telefono || "", descripcion: barber.descripcion || "", estado: barber.estado, usuario: barber.usuario || "", password: "", confirmPassword: "" })}>
-                {barber.nombre} - {barber.usuario || "sin usuario"} - {barber.estado}
-              </button>
-            ))}
-          </div>
-        </article>
-
-        <article className="management-card">
-          <h2>Usuarios</h2>
+          <h2>Usuarios y barberos</h2>
           <form onSubmit={saveUser} className="stack-form">
             <input value={userForm.nombre} onChange={(event) => setUserForm({ ...userForm, nombre: event.target.value })} placeholder="Nombre completo" required />
             <input value={userForm.usuario} onChange={(event) => setUserForm({ ...userForm, usuario: event.target.value })} placeholder="Usuario de acceso" required />
@@ -382,10 +324,16 @@ export default function AdminManagement() {
               <option value="Barbero">Barbero</option>
             </select>
             {userForm.rol === "Barbero" && (
-              <select value={userForm.id_barbero || ""} onChange={(event) => setUserForm({ ...userForm, id_barbero: event.target.value })} required>
-                <option value="">Vincular barbero</option>
-                {barbers.map((barber) => <option key={barber.id} value={barber.id}>{barber.nombre}</option>)}
-              </select>
+              <>
+                {userForm.id && (
+                  <select value={userForm.id_barbero || ""} onChange={(event) => setUserForm({ ...userForm, id_barbero: event.target.value })}>
+                    <option value="">Crear nuevo perfil de barbero</option>
+                    {barbers.map((barber) => <option key={barber.id} value={barber.id}>{barber.nombre}</option>)}
+                  </select>
+                )}
+                <input value={userForm.telefono} onChange={(event) => setUserForm({ ...userForm, telefono: event.target.value })} placeholder="Telefono del barbero" />
+                <textarea value={userForm.descripcion} onChange={(event) => setUserForm({ ...userForm, descripcion: event.target.value })} placeholder="Descripcion profesional visible en el inicio" rows="4" />
+              </>
             )}
             <select value={userForm.estado} onChange={(event) => setUserForm({ ...userForm, estado: event.target.value })}>
               <option value="Activo">Activo</option>
@@ -400,7 +348,7 @@ export default function AdminManagement() {
           </form>
           <div className="mini-list">
             {users.map((user) => (
-              <button type="button" key={user.id} onClick={() => setUserForm({ id: user.id, nombre: user.nombre, usuario: user.usuario, rol: user.rol, id_barbero: user.id_barbero ? String(user.id_barbero) : "", estado: user.estado, password: "", confirmPassword: "" })}>
+              <button type="button" key={user.id} onClick={() => setUserForm({ id: user.id, nombre: user.nombre, usuario: user.usuario, rol: user.rol, id_barbero: user.id_barbero ? String(user.id_barbero) : "", telefono: user.barber_telefono || "", descripcion: user.barber_descripcion || "", estado: user.estado, password: "", confirmPassword: "" })}>
                 {user.usuario} - {user.rol}{user.barbero ? ` (${user.barbero})` : ""} - {user.estado}
               </button>
             ))}

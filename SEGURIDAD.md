@@ -25,7 +25,7 @@ El frontend consulta `/api/auth/me` antes de mostrar rutas privadas. Si no hay s
 
 Cada request protegido valida que el usuario siga activo en la tabla `usuarios`.
 
-El administrador puede crear usuarios desde `/admin/gestion`, asignarles rol, estado, contraseña inicial y, cuando el rol sea `Barbero`, vincularlos a un barbero existente. El sistema impide que un administrador se quite a si mismo el rol `Admin` o se inactive accidentalmente.
+El administrador puede crear usuarios desde `/admin/gestion`, asignarles rol, estado y contraseña inicial. Si el rol es `Barbero`, el mismo formulario muestra telefono y descripcion profesional, y el backend crea o actualiza el perfil de barbero asociado. El sistema impide que un administrador se quite a si mismo el rol `Admin` o se inactive accidentalmente.
 
 ## Contrasenas
 
@@ -76,6 +76,7 @@ La galeria administrativa permite solo `jpg`, `jpeg`, `png` y `webp`, valida MIM
 - `/api/users` sin sesion devuelve `401`.
 - Barbero intentando crear usuarios recibe `403`.
 - Admin puede listar, crear y actualizar usuarios.
+- Admin puede crear un usuario `Barbero` desde el formulario unificado y el backend crea/actualiza su perfil de barbero asociado.
 - Usuario creado por admin queda guardado con hash `scrypt`; el usuario de prueba fue eliminado despues de verificar.
 - Contrasena debil al crear usuario devuelve `400`.
 - Logout invalida la sesion; luego `/api/auth/me` devuelve `401`.
