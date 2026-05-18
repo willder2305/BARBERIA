@@ -34,6 +34,7 @@ export default function Reservations() {
   const [selectedHour, setSelectedHour] = useState("");
   const [slots, setSlots] = useState([]);
   const [message, setMessage] = useState("");
+  const [loadingCatalog, setLoadingCatalog] = useState(true);
   const [saved, setSaved] = useState(null);
 
   const selectedServices = useMemo(
@@ -138,12 +139,34 @@ export default function Reservations() {
   }
 
   useEffect(() => {
-    Promise.all([getServices(), getBarbers()])
-      .then(([serviceRows, barberRows]) => {
+    let alive = true;
+    async function loadCatalog() {
+      setLoadingCatalog(true);
+      const [serviceResult, barberResult] = await Promise.allSettled([getServices(), getBarbers()]);
+      if (!alive) return;
+      if (serviceResult.status === "fulfilled") {
+        const serviceRows = serviceResult.value;
         setServices(serviceRows);
+      } else {
+        setMessage(serviceResult.reason.message || "No se pudieron cargar los servicios.");
+      }
+      if (barberResult.status === "fulfilled") {
+        const barberRows = barberResult.value;
         setBarbers(barberRows);
-      })
-      .catch((err) => setMessage(err.message));
+      } else {
+        setMessage(barberResult.reason.message || "No se pudieron cargar los barberos.");
+      }
+      setLoadingCatalog(false);
+    }
+    loadCatalog().catch((err) => {
+      if (alive) {
+        setMessage(err.message);
+        setLoadingCatalog(false);
+      }
+    });
+    return () => {
+      alive = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -181,6 +204,8 @@ export default function Reservations() {
             </div>
 
             <label className="form-label d-block text-center subtitulo">Selecciona el Servicio</label>
+            {loadingCatalog && <p className="catalog-status">Cargando servicios y barberos...</p>}
+            {!loadingCatalog && services.length === 0 && <p className="catalog-status warn">No hay servicios disponibles. Revisa que la API y MySQL esten activos.</p>}
             <div className="servicios-grid">
               {services.map((service) => {
                 const selected = serviceIds.includes(Number(service.id));
@@ -202,6 +227,7 @@ export default function Reservations() {
             )}
 
             <label className="form-label d-block text-center subtitulo mt-4">Selecciona tu Barbero</label>
+            {!loadingCatalog && barbers.length === 0 && <p className="catalog-status warn">No hay barberos disponibles. Revisa la conexion con la base de datos.</p>}
             <div className="barberos-grid">
               {barbers.map((item) => (
                 <button type="button" className={`barbero-card ${Number(barberId) === Number(item.id) ? "selected" : ""}`} key={item.id} onClick={() => setBarberId(item.id)}>

@@ -27,6 +27,7 @@ SET descripcion = 'Barbero enfocado en barba, perfilado clasico y asesoria perso
 WHERE nombre = 'Douglas' AND (descripcion IS NULL OR descripcion = '');
 
 INSERT INTO configuracion_sistema (clave, valor, descripcion) VALUES
+('whatsapp_followers', '58', 'Contador de contactos de WhatsApp'),
 ('social_facebook_url', 'https://facebook.com/', 'Enlace oficial de Facebook'),
 ('social_instagram_url', 'https://instagram.com/', 'Enlace oficial de Instagram'),
 ('social_whatsapp_url', 'https://wa.me/50236353527', 'Enlace wa.me de WhatsApp'),

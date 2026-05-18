@@ -639,6 +639,8 @@ Alcance previsto:
 
 - nota informativa debajo del horario de atencion;
 - botones funcionales para Facebook, Instagram y WhatsApp;
+- conteo animado de seguidores/contactos de Facebook, Instagram y WhatsApp, conectado a `configuracion_sistema`;
+- mensajes visibles en `/reservas` si no cargan servicios o barberos por conexion de base de datos;
 - configuracion comentada de enlaces de redes sociales;
 - seccion de ubicacion con mapa, boton de Google Maps y boton de Waze;
 - configuracion comentada de mapa, Google Maps, Waze y direccion textual;

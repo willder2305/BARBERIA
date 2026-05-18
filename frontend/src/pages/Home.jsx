@@ -53,9 +53,9 @@ const defaultLocationConfig = {
 };
 
 const defaultStats = {
-  clients: 500,
-  years: 5,
-  styles: 1200,
+  facebook: 150,
+  instagram: 300,
+  whatsapp: 58,
 };
 
 function resolveAssetUrl(value) {
@@ -126,10 +126,7 @@ export default function Home() {
   const [settings, setSettings] = useState({
     facebook_followers: "150",
     instagram_followers: "300",
-    tiktok_followers: "58",
-    stats_clients: String(defaultStats.clients),
-    stats_years: String(defaultStats.years),
-    stats_styles: String(defaultStats.styles),
+    whatsapp_followers: "58",
   });
 
   useEffect(() => {
@@ -170,9 +167,9 @@ export default function Home() {
   };
 
   const statCards = [
-    { label: "Clientes satisfechos", value: settings.stats_clients || defaultStats.clients, suffix: "+", icon: "fa-users" },
-    { label: "Anos de experiencia", value: settings.stats_years || defaultStats.years, suffix: "+", icon: "fa-award" },
-    { label: "Estilos realizados", value: settings.stats_styles || defaultStats.styles, suffix: "+", icon: "fa-scissors" },
+    { label: "Fans en Facebook", value: settings.facebook_followers || defaultStats.facebook, suffix: "+", icon: "fa-brands fa-facebook", brand: true },
+    { label: "Seguidores en Instagram", value: settings.instagram_followers || defaultStats.instagram, suffix: "+", icon: "fa-brands fa-instagram", brand: true },
+    { label: "Contactos en WhatsApp", value: settings.whatsapp_followers || defaultStats.whatsapp, suffix: "+", icon: "fa-brands fa-whatsapp", brand: true },
   ];
 
   return (
@@ -215,7 +212,7 @@ export default function Home() {
           <div className="stats-grid">
             {statCards.map((item) => (
               <article className="stat-card" key={item.label}>
-                <i className={`fa-solid ${item.icon}`} />
+                <i className={item.brand ? item.icon : `fa-solid ${item.icon}`} />
                 <AnimatedCount value={item.value} suffix={item.suffix} />
                 <span>{item.label}</span>
               </article>

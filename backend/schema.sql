@@ -316,6 +316,7 @@ WHERE b.nombre IN ('Luis', 'Douglas')
 INSERT INTO configuracion_sistema (clave, valor, descripcion) VALUES
 ('facebook_followers', '150', 'Contador de seguidores de Facebook'),
 ('instagram_followers', '300', 'Contador de seguidores de Instagram'),
+('whatsapp_followers', '58', 'Contador de contactos de WhatsApp'),
 ('tiktok_followers', '58', 'Contador de seguidores de TikTok'),
 ('telefono_barberia', '36353527', 'Telefono principal de la barberia'),
 ('social_facebook_url', 'https://facebook.com/', 'Enlace oficial de Facebook'),

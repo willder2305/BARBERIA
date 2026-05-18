@@ -711,6 +711,23 @@ a {
   font-weight: 700;
 }
 
+.catalog-status {
+  width: min(720px, 100%);
+  margin: 10px auto 16px;
+  padding: 12px 14px;
+  border: 1px solid rgba(0, 255, 170, 0.35);
+  border-radius: 8px;
+  color: #dff;
+  text-align: center;
+  background: rgba(0, 255, 170, 0.06);
+}
+
+.catalog-status.warn {
+  border-color: rgba(255, 203, 102, 0.5);
+  color: #ffdf91;
+  background: rgba(255, 203, 102, 0.08);
+}
+
 .servicio-card.selected,
 .barbero-card.selected,
 .day.selected,

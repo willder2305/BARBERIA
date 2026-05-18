@@ -15,6 +15,9 @@ def get_connection():
         database=current_app.config["DB_NAME"],
         cursorclass=DictCursor,
         autocommit=False,
+        connect_timeout=5,
+        read_timeout=10,
+        write_timeout=10,
     )
 
 

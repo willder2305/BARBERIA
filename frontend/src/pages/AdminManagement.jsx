@@ -427,6 +427,7 @@ export default function AdminManagement() {
             {[
               "facebook_followers",
               "instagram_followers",
+              "whatsapp_followers",
               "tiktok_followers",
               "stats_clients",
               "stats_years",

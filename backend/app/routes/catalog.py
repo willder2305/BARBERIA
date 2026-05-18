@@ -16,6 +16,18 @@ BACKEND_ROOT = Path(__file__).resolve().parents[2]
 GALLERY_UPLOAD_DIR = BACKEND_ROOT / "uploads" / "gallery"
 ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp", "gif"}
 ALLOWED_IMAGE_MIMES = {"image/jpeg", "image/png", "image/webp", "image/gif"}
+DEFAULT_SETTINGS = {
+    "facebook_followers": ("150", "Contador de seguidores de Facebook"),
+    "instagram_followers": ("300", "Contador de seguidores de Instagram"),
+    "whatsapp_followers": ("58", "Contador de contactos de WhatsApp"),
+    "social_facebook_url": ("https://facebook.com/", "Enlace oficial de Facebook"),
+    "social_instagram_url": ("https://instagram.com/", "Enlace oficial de Instagram"),
+    "social_whatsapp_url": ("https://wa.me/50236353527", "Enlace wa.me de WhatsApp"),
+    "location_map_embed_url": ("https://www.google.com/maps?q=Huehuetenango%2C%20Guatemala&output=embed", "URL embebida del mapa"),
+    "location_google_maps_url": ("https://www.google.com/maps/search/?api=1&query=Huehuetenango%2C%20Guatemala", "Enlace directo de Google Maps"),
+    "location_waze_url": ("https://waze.com/ul?q=Huehuetenango%2C%20Guatemala&navigate=yes", "Enlace directo de Waze"),
+    "location_address": ("Huehuetenango, Guatemala", "Direccion textual del negocio"),
+}
 
 
 def clean(value):
@@ -51,6 +63,33 @@ def ensure_content_schema(cursor):
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
         """
     )
+    cursor.execute(
+        """
+        UPDATE barberos
+        SET descripcion = 'Especialista en cortes modernos, degradados limpios y acabados detallados para un estilo fresco.'
+        WHERE nombre = 'Luis' AND (descripcion IS NULL OR descripcion = '')
+        """
+    )
+    cursor.execute(
+        """
+        UPDATE barberos
+        SET descripcion = 'Barbero enfocado en barba, perfilado clasico y asesoria personalizada para cada cliente.'
+        WHERE nombre = 'Douglas' AND (descripcion IS NULL OR descripcion = '')
+        """
+    )
+
+
+def ensure_default_settings(cursor):
+    """Crea ajustes visuales faltantes sin sobrescribir valores editados por admin."""
+    for key, (value, description) in DEFAULT_SETTINGS.items():
+        cursor.execute(
+            """
+            INSERT INTO configuracion_sistema (clave, valor, descripcion)
+            VALUES (%s, %s, %s)
+            ON DUPLICATE KEY UPDATE descripcion = VALUES(descripcion)
+            """,
+            (key, value, description),
+        )
 
 
 def gallery_row(row):
@@ -138,19 +177,22 @@ def list_barbers():
     """Lista barberos activos para reserva y todos para admin."""
     include_inactive = request.args.get("include_inactive") == "1"
     where = "" if include_inactive else "WHERE b.estado = 'Activo'"
-    with db_cursor(commit=True) as cursor:
-        ensure_content_schema(cursor)
-        cursor.execute(
-            f"""
-            SELECT b.id, b.nombre, b.telefono, b.descripcion, b.estado, u.usuario
-            FROM barberos b
-            LEFT JOIN usuarios u ON u.id_barbero = b.id AND u.rol = 'Barbero'
-            {where}
-            ORDER BY b.nombre
-            """
-        )
-        rows = cursor.fetchall()
-    return ok(rows)
+    try:
+        with db_cursor(commit=True) as cursor:
+            ensure_content_schema(cursor)
+            cursor.execute(
+                f"""
+                SELECT b.id, b.nombre, b.telefono, b.descripcion, b.estado, u.usuario
+                FROM barberos b
+                LEFT JOIN usuarios u ON u.id_barbero = b.id AND u.rol = 'Barbero'
+                {where}
+                ORDER BY b.nombre
+                """
+            )
+            rows = cursor.fetchall()
+        return ok(rows)
+    except Exception:
+        return fail("No se pudieron cargar los barberos porque la base de datos no esta disponible.", 503)
 
 
 @catalog_bp.post("/barbers")
@@ -257,18 +299,21 @@ def update_barber(barber_id):
 def list_services():
     include_inactive = request.args.get("include_inactive") == "1"
     where = "" if include_inactive else "WHERE estado = 'Activo'"
-    with db_cursor() as cursor:
-        cursor.execute(
-            f"""
-            SELECT id, nombre, precio, duracion_minutos, requiere_separacion,
-                   minutos_separacion, estado, descripcion
-            FROM servicios
-            {where}
-            ORDER BY nombre
-            """
-        )
-        rows = cursor.fetchall()
-    return ok(rows)
+    try:
+        with db_cursor() as cursor:
+            cursor.execute(
+                f"""
+                SELECT id, nombre, precio, duracion_minutos, requiere_separacion,
+                       minutos_separacion, estado, descripcion
+                FROM servicios
+                {where}
+                ORDER BY nombre
+                """
+            )
+            rows = cursor.fetchall()
+        return ok(rows)
+    except Exception:
+        return fail("No se pudieron cargar los servicios porque la base de datos no esta disponible.", 503)
 
 
 @catalog_bp.post("/services")
@@ -378,10 +423,14 @@ def list_client_reservations(client_id):
 
 @catalog_bp.get("/settings")
 def list_settings():
-    with db_cursor() as cursor:
-        cursor.execute("SELECT clave, valor, descripcion FROM configuracion_sistema ORDER BY clave")
-        rows = cursor.fetchall()
-    return ok(rows)
+    try:
+        with db_cursor(commit=True) as cursor:
+            ensure_default_settings(cursor)
+            cursor.execute("SELECT clave, valor, descripcion FROM configuracion_sistema ORDER BY clave")
+            rows = cursor.fetchall()
+        return ok(rows)
+    except Exception:
+        return fail("No se pudo cargar la configuracion porque la base de datos no esta disponible.", 503)
 
 
 @catalog_bp.put("/settings")
@@ -391,6 +440,7 @@ def update_settings():
     allowed = {
         "facebook_followers": "Contador de seguidores de Facebook",
         "instagram_followers": "Contador de seguidores de Instagram",
+        "whatsapp_followers": "Contador de contactos de WhatsApp",
         "tiktok_followers": "Contador de seguidores de TikTok",
         "telefono_barberia": "Telefono principal de la barberia",
         "horario_general": "Horario general usado para agenda de barberos",
@@ -407,6 +457,7 @@ def update_settings():
         "stats_styles": "Numero final para contador de estilos realizados",
     }
     with db_cursor(commit=True) as cursor:
+        ensure_default_settings(cursor)
         for key, value in data.items():
             if key not in allowed:
                 continue
@@ -426,18 +477,21 @@ def list_gallery():
     """Lista fotos activas para el inicio o todas cuando el admin lo solicita."""
     include_inactive = request.args.get("include_inactive") == "1"
     where = "" if include_inactive else "WHERE activo = 1"
-    with db_cursor(commit=True) as cursor:
-        ensure_content_schema(cursor)
-        cursor.execute(
-            f"""
-            SELECT id, titulo, descripcion, image_url, filename, activo
-            FROM galeria_fotos
-            {where}
-            ORDER BY id DESC
-            """
-        )
-        rows = cursor.fetchall()
-    return ok([gallery_row(row) for row in rows])
+    try:
+        with db_cursor(commit=True) as cursor:
+            ensure_content_schema(cursor)
+            cursor.execute(
+                f"""
+                SELECT id, titulo, descripcion, image_url, filename, activo
+                FROM galeria_fotos
+                {where}
+                ORDER BY id DESC
+                """
+            )
+            rows = cursor.fetchall()
+        return ok([gallery_row(row) for row in rows])
+    except Exception:
+        return fail("No se pudo cargar la galeria porque la base de datos no esta disponible.", 503)
 
 
 @catalog_bp.get("/gallery/files/<path:filename>")
