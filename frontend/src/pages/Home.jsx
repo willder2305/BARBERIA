@@ -40,9 +40,9 @@ const amenities = [
    WhatsApp: colocar aqui el numero en formato internacional dentro de wa.me.
 */
 const defaultSocialLinks = {
-  facebook: "https://facebook.com/",
-  instagram: "https://instagram.com/",
-  whatsapp: "https://wa.me/50236353527",
+  facebook: "https://www.facebook.com/share/1Nt5KyAxm3/",
+  instagram: "https://www.instagram.com/wichos_barbershop29?igsh=MWcwNnlqajVoZjFlbA==",
+  whatsapp: "https://wa.me/50246700501",
 };
 
 /* CONFIGURACION DE UBICACION:
