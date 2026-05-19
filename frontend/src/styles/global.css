@@ -350,52 +350,48 @@ a {
 .work-carousel-shell {
   position: relative;
   perspective: 1400px;
+  width: min(1180px, calc(100vw - 36px));
+  margin: 0 auto;
+  padding: 16px 0 30px;
+  cursor: ew-resize;
+  overflow: hidden;
 }
 
 .work-carousel-track {
-  display: flex;
-  gap: 26px;
-  overflow-x: auto;
-  overflow-y: visible;
-  scroll-behavior: smooth;
-  scroll-snap-type: x mandatory;
-  scrollbar-width: none;
-  padding: 34px max(22px, calc((100vw - 1140px) / 2)) 44px;
-  margin-inline: calc(50% - 50vw);
-}
-
-.work-carousel-track::-webkit-scrollbar {
-  display: none;
+  display: grid;
+  grid-template-columns: minmax(180px, 0.78fr) minmax(280px, 1.08fr) minmax(180px, 0.78fr);
+  gap: 28px;
+  align-items: center;
+  min-height: clamp(330px, 42vw, 520px);
 }
 
 .work-carousel-card {
-  --tilt-x: 0deg;
-  --tilt-y: 0deg;
-  flex: 0 0 clamp(230px, 23vw, 360px);
+  width: 100%;
   aspect-ratio: 1 / 1;
   border: 0;
-  border-radius: 24px;
+  border-radius: 22px;
   background: #e9f4ee;
   box-shadow:
-    0 18px 34px rgba(0, 0, 0, 0.18),
-    0 0 0 1px rgba(0, 255, 128, 0.18),
+    0 16px 30px rgba(0, 0, 0, 0.16),
+    0 0 0 1px rgba(0, 255, 128, 0.12),
     inset 0 0 0 1px rgba(255, 255, 255, 0.4);
-  cursor: pointer;
   overflow: hidden;
-  scroll-snap-align: center;
-  transform: rotateX(var(--tilt-x)) rotateY(var(--tilt-y)) translateZ(0);
+  opacity: 0.72;
+  transform: scale(0.88) translateZ(0);
   transform-style: preserve-3d;
   transition:
-    flex-basis 0.45s ease,
-    transform 0.22s ease,
+    opacity 0.35s ease,
+    transform 0.45s ease,
     box-shadow 0.35s ease,
     filter 0.35s ease;
-  will-change: transform, flex-basis;
+  filter: saturate(0.9) brightness(0.9);
+  will-change: transform, opacity;
 }
 
-.work-carousel-card:hover {
-  flex-basis: clamp(300px, 31vw, 470px);
+.work-carousel-card.is-center {
   z-index: 3;
+  opacity: 1;
+  transform: scale(1) translateZ(28px);
   box-shadow:
     0 28px 54px rgba(0, 0, 0, 0.28),
     0 18px 34px rgba(0, 255, 128, 0.2),
@@ -403,46 +399,20 @@ a {
   filter: saturate(1.07) contrast(1.04);
 }
 
+.work-carousel-card.is-side {
+  pointer-events: none;
+}
+
 .work-carousel-card img {
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transform: translateZ(36px) scale(1.04);
+  transform: scale(1.02);
   transition: transform 0.45s ease;
 }
 
-.work-carousel-card:hover img {
-  transform: translateZ(54px) scale(1.09);
-}
-
-.work-carousel-btn {
-  position: absolute;
-  top: 50%;
-  z-index: 4;
-  width: 46px;
-  height: 46px;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(0, 255, 128, 0.35);
-  border-radius: 50%;
-  background: rgba(13, 17, 18, 0.84);
-  color: #fff;
-  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.28);
-  transform: translateY(-50%);
-}
-
-.work-carousel-btn:hover {
-  background: linear-gradient(135deg, var(--verde), var(--azul));
-  color: #001f3f;
-  transform: translateY(-50%) scale(1.08);
-}
-
-.work-carousel-btn.prev {
-  left: -6px;
-}
-
-.work-carousel-btn.next {
-  right: -6px;
+.work-carousel-card.is-center img {
+  transform: scale(1.06);
 }
 
 .barbers-container,
@@ -1574,22 +1544,20 @@ tr:nth-child(even) {
     padding: 58px 0 66px;
   }
 
+  .work-carousel-shell {
+    width: min(100%, calc(100vw - 20px));
+    padding-bottom: 22px;
+  }
+
   .work-carousel-track {
-    gap: 16px;
-    padding-block: 22px 30px;
+    grid-template-columns: minmax(70px, 0.62fr) minmax(150px, 1fr) minmax(70px, 0.62fr);
+    gap: 10px;
+    min-height: 300px;
   }
 
   .work-carousel-card {
-    flex-basis: min(78vw, 320px);
-  }
-
-  .work-carousel-card:hover {
-    flex-basis: min(84vw, 360px);
-  }
-
-  .work-carousel-btn {
-    width: 40px;
-    height: 40px;
+    border-radius: 16px;
+    transform: scale(0.82);
   }
 
   .weekdays,

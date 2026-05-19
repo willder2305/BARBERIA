@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const fallbackImages = ["/fotos/work1.jpg", "/fotos/work2.jpg", "/fotos/work3.jpg"];
 
@@ -7,90 +7,98 @@ function normalizeImage(image) {
   return image?.image_url || image?.url || "";
 }
 
-// Carrusel reutilizable de trabajos: autoplay, controles estables y fallback si no hay imagenes.
+// Carrusel reutilizable de trabajos: infinito, automatico y con navegacion por zonas laterales.
 export default function WorkCarousel({ images = [] }) {
-  const trackRef = useRef(null);
-  const pausedRef = useRef(false);
-  const lockedRef = useRef(false);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const directionRef = useRef(1);
+  const hoverDirectionRef = useRef(0);
   const safeImages = useMemo(() => {
     const normalized = images.map(normalizeImage).filter(Boolean);
     return normalized.length ? normalized : fallbackImages;
   }, [images]);
 
-  // Desplaza el carrusel evitando dobles clics que dejen el estado visual inestable.
-  function scrollCarousel(direction) {
-    if (!trackRef.current || lockedRef.current) return;
-    lockedRef.current = true;
-    const track = trackRef.current;
-    const distance = Math.max(track.clientWidth * 0.82, 220);
-    const nextLeft = Math.max(0, Math.min(track.scrollLeft + direction * distance, track.scrollWidth - track.clientWidth));
-    track.scrollTo({ left: nextLeft, behavior: "smooth" });
-    window.setTimeout(() => {
-      lockedRef.current = false;
-    }, 420);
-  }
+  const moveCarousel = useCallback(
+    (direction = 1) => {
+      if (!safeImages.length) return;
+      directionRef.current = direction;
+      setActiveIndex((current) => (current + direction + safeImages.length) % safeImages.length);
+    },
+    [safeImages.length],
+  );
 
-  // Pausa o reactiva el avance automatico durante interacciones del usuario.
-  function setCarouselPaused(value) {
-    pausedRef.current = value;
-  }
+  const visibleImages = useMemo(() => {
+    return [-1, 0, 1].map((position) => {
+      const index = (activeIndex + position + safeImages.length) % safeImages.length;
+      return {
+        image: safeImages[index],
+        index,
+        position,
+      };
+    });
+  }, [activeIndex, safeImages]);
 
-  // Autoplay con reinicio controlado al llegar al final.
+  // Autoplay infinito; conserva la ultima direccion marcada por el usuario.
   useEffect(() => {
+    if (safeImages.length <= 1) return undefined;
     const intervalId = window.setInterval(() => {
-      if (pausedRef.current || !trackRef.current) return;
-      const track = trackRef.current;
-      const nearEnd = track.scrollLeft + track.clientWidth >= track.scrollWidth - 8;
-      if (nearEnd) {
-        track.scrollTo({ left: 0, behavior: "smooth" });
-        return;
-      }
-      scrollCarousel(1);
-    }, 2600);
+      moveCarousel(directionRef.current);
+    }, 2800);
 
     return () => window.clearInterval(intervalId);
-  }, [safeImages.length]);
+  }, [moveCarousel, safeImages.length]);
 
-  // Inclinacion 3D suave de las cards, desactivable en tactil al no recibir pointer move.
+  // Si el cursor entra en los laterales, avanza hacia ese lado sin mostrar controles.
+  useEffect(() => {
+    if (safeImages.length <= 1) return undefined;
+    const intervalId = window.setInterval(() => {
+      if (!hoverDirectionRef.current) return;
+      moveCarousel(hoverDirectionRef.current);
+    }, 760);
+
+    return () => window.clearInterval(intervalId);
+  }, [moveCarousel, safeImages.length]);
+
   function handlePointerMove(event) {
-    const card = event.currentTarget;
-    const rect = card.getBoundingClientRect();
-    const x = (event.clientX - rect.left) / rect.width - 0.5;
-    const y = (event.clientY - rect.top) / rect.height - 0.5;
-    card.style.setProperty("--tilt-x", `${(-y * 10).toFixed(2)}deg`);
-    card.style.setProperty("--tilt-y", `${(x * 12).toFixed(2)}deg`);
+    const rect = event.currentTarget.getBoundingClientRect();
+    const pointerX = event.clientX - rect.left;
+    const sideZone = rect.width * 0.28;
+
+    if (pointerX < sideZone) {
+      hoverDirectionRef.current = -1;
+      directionRef.current = -1;
+      return;
+    }
+
+    if (pointerX > rect.width - sideZone) {
+      hoverDirectionRef.current = 1;
+      directionRef.current = 1;
+      return;
+    }
+
+    hoverDirectionRef.current = 0;
   }
 
-  function resetTilt(event) {
-    const card = event.currentTarget;
-    card.style.setProperty("--tilt-x", "0deg");
-    card.style.setProperty("--tilt-y", "0deg");
+  function resetHoverDirection() {
+    hoverDirectionRef.current = 0;
   }
 
   return (
     <div
       className="work-carousel-shell"
       aria-label="Carrusel de trabajos realizados"
-      onPointerEnter={() => setCarouselPaused(true)}
-      onPointerLeave={() => setCarouselPaused(false)}
-      onFocus={() => setCarouselPaused(true)}
-      onBlur={() => setCarouselPaused(false)}
+      onPointerMove={handlePointerMove}
+      onPointerLeave={resetHoverDirection}
     >
-      <button type="button" className="work-carousel-btn prev" aria-label="Ver trabajos anteriores" onClick={() => scrollCarousel(-1)}>
-        <i className="fa-solid fa-chevron-left" />
-      </button>
-
-      <div className="work-carousel-track" ref={trackRef}>
-        {safeImages.map((image, index) => (
-          <article className="work-carousel-card" key={`${image}-${index}`} onPointerMove={handlePointerMove} onPointerLeave={resetTilt}>
-            <img src={image} alt={`Trabajo de barberia ${index + 1}`} loading="lazy" />
+      <div className="work-carousel-track">
+        {visibleImages.map(({ image, index, position }) => (
+          <article
+            className={`work-carousel-card ${position === 0 ? "is-center" : `is-side ${position < 0 ? "is-left" : "is-right"}`}`}
+            key={`${image}-${index}-${position}`}
+          >
+            <img src={image} alt={`Trabajo de barberia ${index + 1}`} loading={position === 0 ? "eager" : "lazy"} />
           </article>
         ))}
       </div>
-
-      <button type="button" className="work-carousel-btn next" aria-label="Ver siguientes trabajos" onClick={() => scrollCarousel(1)}>
-        <i className="fa-solid fa-chevron-right" />
-      </button>
     </div>
   );
 }
