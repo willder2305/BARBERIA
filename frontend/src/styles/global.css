@@ -12,11 +12,22 @@
   box-sizing: border-box;
 }
 
+html,
+body {
+  width: 100%;
+  overflow-x: hidden;
+}
+
 body {
   margin: 0;
   background: #0a0a0a;
   color: var(--texto);
   font-family: "Poppins", sans-serif;
+}
+
+img,
+iframe {
+  max-width: 100%;
 }
 
 #root {
@@ -33,7 +44,8 @@ a {
 .home-header {
   position: relative;
   background: url("/fotos/fondo1.jpg") center/cover no-repeat;
-  height: 250px;
+  min-height: 250px;
+  padding: 28px 0;
   display: flex;
   align-items: center;
   overflow: hidden;
@@ -55,6 +67,7 @@ a {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 24px;
 }
 
 .logo-box {
@@ -80,12 +93,16 @@ a {
   align-items: center;
   gap: 25px;
   flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .nav-buttons a {
   color: #fff;
   font-weight: 500;
   text-decoration: none;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
 }
 
 .nav-buttons a:hover {
@@ -102,6 +119,19 @@ a {
   text-decoration: none;
   text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
   box-shadow: 0 0 12px rgba(255, 215, 0, 0.4);
+  min-height: 46px;
+  justify-content: center;
+}
+
+.nav-toggle {
+  display: none;
+  width: 46px;
+  height: 46px;
+  border: 1px solid rgba(0, 255, 128, 0.45);
+  border-radius: 8px;
+  background: rgba(9, 15, 17, 0.78);
+  color: #fff;
+  font-size: 1.25rem;
 }
 
 .btn-cta:hover,
@@ -119,6 +149,7 @@ a {
 
 .social-layout {
   display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(280px, 1fr);
   gap: 24px;
   align-items: center;
 }
@@ -178,6 +209,7 @@ a {
 }
 
 .stats-grid {
+  grid-column: 1 / -1;
   display: grid;
   grid-template-columns: repeat(3, minmax(160px, 1fr));
   gap: 14px;
@@ -271,7 +303,7 @@ a {
 .service-card-grid,
 .amenities-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(180px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 20px;
   max-width: 1040px;
   margin: 28px auto 0;
@@ -421,10 +453,12 @@ a {
   justify-content: center;
   flex-wrap: wrap;
   gap: 40px;
+  width: min(100%, 1040px);
+  margin-inline: auto;
 }
 
 .flip-card {
-  width: 280px;
+  width: min(280px, 100%);
   height: 320px;
   perspective: 1000px;
 }
@@ -484,6 +518,8 @@ a {
   background: rgba(66, 66, 66, 0.7);
   border-radius: 16px;
   padding: 25px 40px;
+  flex: 1 1 260px;
+  max-width: 420px;
 }
 
 .schedule-card.closed {
@@ -547,7 +583,7 @@ a {
 }
 
 .map-shell {
-  min-height: 360px;
+  min-height: clamp(280px, 40vw, 420px);
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid rgba(0, 0, 0, 0.14);
@@ -557,7 +593,7 @@ a {
 .map-shell iframe {
   width: 100%;
   height: 100%;
-  min-height: 360px;
+  min-height: clamp(280px, 40vw, 420px);
   border: 0;
   display: block;
 }
@@ -576,6 +612,11 @@ a {
   font-weight: 600;
 }
 
+.footer-section p {
+  margin: 0 0 8px;
+  overflow-wrap: anywhere;
+}
+
 .login-page {
   min-height: 100vh;
   background: linear-gradient(120deg, #001f3f, #003a2d);
@@ -589,7 +630,7 @@ a {
   background: rgba(255, 255, 255, 0.05);
   border: 2px solid rgba(0, 255, 128, 0.3);
   border-radius: 15px;
-  padding: 40px;
+  padding: clamp(24px, 5vw, 40px);
   width: min(100%, 380px);
   text-align: center;
   box-shadow: 0 0 20px rgba(0, 255, 128, 0.2);
@@ -630,7 +671,7 @@ a {
 .reservation-header {
   background: linear-gradient(90deg, #001f3f, #004f2d);
   color: #fff;
-  padding: 40px 20px;
+  padding: clamp(32px, 6vw, 46px) 20px;
 }
 
 .form-section {
@@ -642,7 +683,7 @@ a {
   background: var(--panel);
   border: 1px solid var(--borde);
   border-radius: 16px;
-  padding: 30px;
+  padding: clamp(18px, 3vw, 30px);
 }
 
 .servicios-grid,
@@ -656,7 +697,7 @@ a {
 
 .servicio-card,
 .barbero-card {
-  width: 220px;
+  width: min(220px, 100%);
   min-height: 130px;
   background: #101214;
   border: 2px solid transparent;
@@ -727,12 +768,14 @@ a {
   border: 1px solid #23333a;
   border-radius: 14px;
   padding: 16px;
+  width: min(100%, 520px);
 }
 
 .calendar-grid.reservation-days {
   display: grid;
-  grid-template-columns: repeat(7, 42px);
+  grid-template-columns: repeat(7, minmax(34px, 42px));
   gap: 6px;
+  justify-content: center;
 }
 
 .day,
@@ -752,7 +795,8 @@ a {
 }
 
 .day {
-  width: 42px;
+  width: 100%;
+  min-width: 34px;
   height: 42px;
   display: flex;
   align-items: center;
@@ -766,7 +810,8 @@ a {
 }
 
 .hours-box {
-  min-width: 300px;
+  min-width: min(300px, 100%);
+  flex: 1 1 300px;
 }
 
 .hours-grid {
@@ -805,7 +850,7 @@ a {
 
 .dashboard-summary {
   display: grid;
-  grid-template-columns: repeat(5, minmax(130px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
   gap: 12px;
   margin: 20px 0;
 }
@@ -837,10 +882,12 @@ a {
   flex-wrap: wrap;
   gap: 10px;
   align-items: center;
+  justify-content: flex-end;
 }
 
 .toolbar-actions .form-select {
   width: auto;
+  min-width: 180px;
 }
 
 #calendar {
@@ -848,6 +895,7 @@ a {
   border-radius: 12px;
   padding: 15px;
   box-shadow: 0 0 15px rgba(0, 255, 128, 0.2);
+  overflow-x: auto;
 }
 
 .calendar-title {
@@ -1064,6 +1112,7 @@ a {
 
 .table-wrap {
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 td small {
@@ -1110,6 +1159,7 @@ td small {
 
 table {
   width: 100%;
+  min-width: 760px;
   margin-top: 20px;
   border-collapse: collapse;
   background: #1f262e;
@@ -1373,7 +1423,7 @@ tr:nth-child(even) {
 
 .gallery-admin-grid {
   display: grid;
-  grid-template-columns: repeat(3, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 14px;
   margin-top: 16px;
 }
@@ -1581,5 +1631,330 @@ tr:nth-child(even) {
 
   .btn-volver {
     position: static;
+  }
+}
+
+/* Breakpoints responsive principales: desktop amplio, tablet y moviles pequenos. */
+@media (min-width: 1280px) {
+  .container,
+  .contenedor {
+    max-width: 1180px;
+  }
+
+  .work-carousel-shell {
+    width: min(1180px, calc(100vw - 56px));
+  }
+}
+
+@media (max-width: 1023px) {
+  .home-header {
+    min-height: auto;
+  }
+
+  .header-top {
+    align-items: flex-start;
+  }
+
+  .nav-buttons {
+    gap: 14px;
+  }
+
+  .location-grid,
+  .chart-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .location-copy,
+  .social-layout {
+    text-align: center;
+  }
+
+  .location-actions,
+  .social-actions {
+    justify-content: center;
+  }
+
+  .management-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 767px) {
+  body {
+    font-size: 0.96rem;
+  }
+
+  h1 {
+    font-size: clamp(1.8rem, 9vw, 2.4rem);
+  }
+
+  h2 {
+    font-size: clamp(1.45rem, 7vw, 2rem);
+  }
+
+  .home-header {
+    padding: 18px 0;
+    overflow: visible;
+  }
+
+  .header-top {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .logo-box {
+    width: 104px;
+    height: 104px;
+    border-radius: 14px;
+  }
+
+  /* Navbar movil: el panel ocupa el ancho disponible y se cierra desde React al elegir enlace. */
+  .nav-toggle {
+    display: grid;
+    place-items: center;
+    margin-left: auto;
+    position: relative;
+    z-index: 4;
+  }
+
+  .nav-buttons {
+    position: absolute;
+    top: calc(100% + 12px);
+    left: 12px;
+    right: 12px;
+    display: grid;
+    gap: 8px;
+    padding: 12px;
+    border: 1px solid rgba(0, 255, 128, 0.28);
+    border-radius: 8px;
+    background: rgba(10, 14, 15, 0.96);
+    box-shadow: 0 18px 36px rgba(0, 0, 0, 0.34);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-8px);
+    z-index: 3;
+  }
+
+  .nav-buttons.open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+  }
+
+  .nav-buttons a,
+  .btn-cta {
+    width: 100%;
+    justify-content: center;
+    min-height: 48px;
+  }
+
+  .social-layout,
+  .stats-grid,
+  .service-card-grid,
+  .amenities-grid,
+  .report-lists,
+  .gallery-form,
+  .gallery-admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .social-link,
+  .location-actions a,
+  .report-export-button,
+  .inline-actions button,
+  .schedule-actions button,
+  .schedule-toolbar button {
+    width: 100%;
+  }
+
+  .about-section,
+  .blur-carousel-section,
+  .schedule-section,
+  .location-section,
+  .faq-section {
+    padding: 48px 14px;
+  }
+
+  .about-card {
+    margin: 10px 0;
+  }
+
+  .service-card-home,
+  .amenity-card,
+  .stat-card,
+  .management-card,
+  .metric-card {
+    width: 100%;
+  }
+
+  .work-carousel-track {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .work-carousel-card.is-side {
+    display: none;
+  }
+
+  .work-carousel-card.is-center {
+    transform: none;
+  }
+
+  .barbers-container,
+  .schedule-grid {
+    gap: 18px;
+  }
+
+  .flip-card {
+    height: 300px;
+  }
+
+  .schedule-card {
+    max-width: none;
+    padding: 22px 18px;
+  }
+
+  /* Formularios y reserva: una columna tactil para evitar controles cortados. */
+  .form-section {
+    width: min(100% - 20px, 100%);
+    margin: 18px auto;
+  }
+
+  .servicios-grid,
+  .barberos-grid,
+  .calendar-container {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .servicio-card,
+  .barbero-card {
+    width: 100%;
+  }
+
+  .calendar-box,
+  .hours-box,
+  .resumen-box {
+    width: 100%;
+  }
+
+  .hours-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .reservation-page .d-flex {
+    flex-wrap: wrap;
+  }
+
+  .reservation-page .d-flex button {
+    flex: 1 1 140px;
+    min-height: 46px;
+  }
+
+  .navbar {
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .navbar-brand {
+    white-space: normal;
+  }
+
+  .toolbar-actions,
+  .toolbar-actions .form-select,
+  .toolbar-actions .btn,
+  .toolbar-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  /* Tablas admin: scroll horizontal controlado solo dentro del contenedor. */
+  .table-wrap {
+    margin-inline: -8px;
+    padding-inline: 8px;
+  }
+
+  .panel-header {
+    padding: 18px 12px;
+  }
+
+  .top-bar h1 {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .modal-backdrop-custom {
+    align-items: flex-start;
+    padding: 14px;
+    overflow-y: auto;
+  }
+
+  .modal-card {
+    margin-top: 18px;
+  }
+
+  .modal-header-custom,
+  .modal-actions {
+    flex-wrap: wrap;
+  }
+
+  .modal-actions button {
+    flex: 1 1 140px;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    width: 100%;
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+
+  .logo-box {
+    width: 88px;
+    height: 88px;
+  }
+
+  .social-section {
+    padding: 28px 0;
+  }
+
+  .stat-card strong {
+    font-size: 1.65rem;
+  }
+
+  .work-carousel-shell {
+    width: min(100%, calc(100vw - 18px));
+  }
+
+  .work-carousel-card {
+    border-radius: 14px;
+  }
+
+  .calendar-grid.reservation-days {
+    grid-template-columns: repeat(7, minmax(32px, 1fr));
+    gap: 5px;
+  }
+
+  .day {
+    min-width: 32px;
+    height: 40px;
+    padding: 8px 4px;
+  }
+
+  .hours-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .side-panel {
+    padding: 16px;
+  }
+
+  .schedule-row {
+    grid-template-columns: 1fr;
+  }
+
+  .footer-section {
+    padding: 22px 14px;
   }
 }

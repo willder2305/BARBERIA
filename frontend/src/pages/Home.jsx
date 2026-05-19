@@ -129,6 +129,7 @@ export default function Home() {
   const [services, setServices] = useState(fallbackServices);
   const [barbers, setBarbers] = useState(fallbackBarbers);
   const [gallery, setGallery] = useState([]);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [settings, setSettings] = useState({
     facebook_followers: "150",
     instagram_followers: "300",
@@ -178,6 +179,10 @@ export default function Home() {
     { label: "Contactos en WhatsApp", value: settings.whatsapp_followers || defaultStats.whatsapp, suffix: "+", icon: "fa-brands fa-whatsapp", brand: true },
   ];
 
+  function closeMobileMenu() {
+    setMobileMenuOpen(false);
+  }
+
   return (
     <>
       {/* Carrusel principal / hero: mantiene logo y navegacion sin tapar contenido. */}
@@ -187,12 +192,22 @@ export default function Home() {
           <div className="logo-box">
             <img src="/fotos/logo2.png" alt="Logo Wicho's Barber Shop" className="logo-img" />
           </div>
-          <nav className="nav-buttons" aria-label="Navegacion principal">
-            <Link to="/login">Iniciar Sesion</Link>
-            <Link to="/faq">FAQ</Link>
-            <a href="#about">Sobre Nosotros</a>
-            <a href="#location">Ubicacion</a>
-            <Link to="/reservas" className="btn-cta">Reservar Ahora</Link>
+          {/* Navbar responsive: en movil se colapsa para evitar enlaces apretados sobre el hero. */}
+          <button
+            type="button"
+            className="nav-toggle"
+            aria-label={mobileMenuOpen ? "Cerrar menu principal" : "Abrir menu principal"}
+            aria-expanded={mobileMenuOpen}
+            onClick={() => setMobileMenuOpen((open) => !open)}
+          >
+            <i className={`fa-solid ${mobileMenuOpen ? "fa-xmark" : "fa-bars"}`} />
+          </button>
+          <nav className={`nav-buttons ${mobileMenuOpen ? "open" : ""}`} aria-label="Navegacion principal">
+            <Link to="/login" onClick={closeMobileMenu}>Iniciar Sesion</Link>
+            <Link to="/faq" onClick={closeMobileMenu}>FAQ</Link>
+            <a href="#about" onClick={closeMobileMenu}>Sobre Nosotros</a>
+            <a href="#location" onClick={closeMobileMenu}>Ubicacion</a>
+            <Link to="/reservas" className="btn-cta" onClick={closeMobileMenu}>Reservar Ahora</Link>
           </nav>
         </div>
       </header>
