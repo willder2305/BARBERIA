@@ -12,6 +12,11 @@ C:\dev\BARBERIA
 
 No usar la ruta vieja de OneDrive para cambios del sistema. Esa ruta solo puede conservar archivos de instrucciones o respaldo.
 
+Ramas de trabajo:
+
+- `local`: configuracion pensada para correr el sistema en la computadora con XAMPP, Python y Vite.
+- `despliegue`: configuracion y documentacion pensadas para hosting, dominio, HTTPS y variables de produccion.
+
 ## Stack
 
 - Backend: Python, Flask, PyMySQL, Flask-Cors.
@@ -74,6 +79,7 @@ Desde PowerShell:
 
 ```powershell
 cd C:\dev\BARBERIA
+git switch local
 ```
 
 Crear entorno Python si no existe:
@@ -91,7 +97,7 @@ backend\.venv\Scripts\Activate.ps1
 Instalar dependencias backend:
 
 ```powershell
-pip install -r backend\requirements.txt
+backend\.venv\Scripts\python.exe -m pip install -r backend\requirements.txt
 ```
 
 Crear archivo de variables del backend:
@@ -126,7 +132,9 @@ Variables importantes:
 ```text
 FLASK_ENV=development
 FLASK_DEBUG=1
-SECRET_KEY=cambia-esta-clave
+APP_HOST=127.0.0.1
+PORT=5000
+SECRET_KEY=clave-local-de-desarrollo
 DB_HOST=localhost
 DB_PORT=3306
 DB_USER=root
@@ -141,6 +149,8 @@ CORS_ORIGIN=http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,ht
 ```
 
 En desarrollo local, `SESSION_COOKIE_SECURE=false` es correcto porque se usa HTTP. En produccion con HTTPS debe cambiarse a `true`.
+
+Si `DATABASE_URL` aparece en `backend\.env`, dejarlo vacio en local para que Flask use las variables `DB_*` de XAMPP.
 
 ## Base de datos
 
@@ -262,7 +272,7 @@ npm.cmd run preview
 
 ## Despliegue en produccion
 
-Esta seccion resume el flujo para publicar la rama `despliegue` en hosting con dominio propio. No subir archivos `.env` reales al repositorio; las variables sensibles deben cargarse desde el panel del proveedor.
+Esta seccion queda como referencia. Para publicar en hosting con dominio propio, usar la rama `despliegue`. No subir archivos `.env` reales al repositorio; las variables sensibles deben cargarse desde el panel del proveedor.
 
 ### Requisitos previos
 
