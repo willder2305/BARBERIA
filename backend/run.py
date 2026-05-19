@@ -4,4 +4,9 @@ app = create_app()
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=True, use_reloader=False)
+    app.run(
+        host=app.config["APP_HOST"],
+        port=app.config["PORT"],
+        debug=app.config["DEBUG"],
+        use_reloader=app.config["DEBUG"],
+    )

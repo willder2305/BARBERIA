@@ -94,7 +94,7 @@ Instalar dependencias backend:
 pip install -r backend\requirements.txt
 ```
 
-Crear archivo de variables:
+Crear archivo de variables del backend:
 
 ```powershell
 Copy-Item backend\.env.example backend\.env
@@ -105,6 +105,12 @@ Instalar dependencias frontend:
 ```powershell
 cd C:\dev\BARBERIA\frontend
 npm.cmd install
+```
+
+Crear variables del frontend si se necesita apuntar a una API distinta:
+
+```powershell
+Copy-Item .env.example .env
 ```
 
 ## Configuracion backend
@@ -131,7 +137,7 @@ WHATSAPP_TOKEN=
 WHATSAPP_PHONE_NUMBER_ID=
 SESSION_COOKIE_SECURE=false
 SESSION_COOKIE_SAMESITE=Lax
-FRONTEND_ORIGIN=http://localhost:5173,http://127.0.0.1:5173,http://localhost:5174,http://127.0.0.1:5174,http://localhost:4173,http://127.0.0.1:4173
+CORS_ORIGIN=http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173
 ```
 
 En desarrollo local, `SESSION_COOKIE_SECURE=false` es correcto porque se usa HTTP. En produccion con HTTPS debe cambiarse a `true`.
@@ -160,6 +166,21 @@ Aplicar migracion de actualizacion 3 si el esquema ya existia antes de esta vers
 
 ```powershell
 C:\xampp\mysql\bin\mysql.exe -uroot -e "source C:/dev/BARBERIA/backend/database/migrations/actualizacion_3_funcion.sql"
+```
+
+Ejecutar esquema y migraciones con el runner del proyecto:
+
+```powershell
+cd C:\dev\BARBERIA
+backend\.venv\Scripts\python.exe backend\scripts\migrate.py
+```
+
+Crear o rotar un administrador con contrasena segura usando variables de entorno:
+
+```powershell
+$env:ADMIN_USERNAME="admin"
+$env:ADMIN_PASSWORD="CambiarPorUnaClaveLarga123"
+backend\.venv\Scripts\python.exe backend\scripts\create_admin.py
 ```
 
 La migracion agrega o ajusta campos para:
@@ -239,6 +260,147 @@ cd C:\dev\BARBERIA\frontend
 npm.cmd run preview
 ```
 
+## Despliegue en produccion
+
+Esta seccion resume el flujo para publicar la rama `despliegue` en hosting con dominio propio. No subir archivos `.env` reales al repositorio; las variables sensibles deben cargarse desde el panel del proveedor.
+
+### Requisitos previos
+
+- Python 3.11 o compatible para el backend Flask.
+- Node.js 18 o superior y npm para compilar React/Vite.
+- MySQL o MariaDB accesible desde el hosting.
+- Acceso al hosting para configurar comando de inicio, variables de entorno y logs.
+- Dominio propio con acceso a DNS.
+- HTTPS/SSL activo antes de usar cookies seguras en produccion.
+
+### Clonar el repositorio
+
+```powershell
+git clone URL_DEL_REPOSITORIO BARBERIA
+cd BARBERIA
+git switch despliegue
+```
+
+### Instalar dependencias
+
+Backend:
+
+```powershell
+python -m venv backend\.venv
+backend\.venv\Scripts\python.exe -m pip install -r backend\requirements.txt
+```
+
+Frontend:
+
+```powershell
+cd frontend
+npm.cmd install
+```
+
+### Variables de entorno
+
+Backend, tomando `backend\.env.example` como guia:
+
+```text
+FLASK_ENV=production
+FLASK_DEBUG=0
+APP_HOST=0.0.0.0
+PORT=5000
+SECRET_KEY=clave_larga_aleatoria
+SESSION_COOKIE_SECURE=true
+SESSION_COOKIE_SAMESITE=None
+CORS_ORIGIN=https://midominio.com,https://www.midominio.com
+DATABASE_URL=mysql+pymysql://usuario:contrasena@host:3306/BARBERIA
+```
+
+Si el hosting no entrega `DATABASE_URL`, configurar `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD` y `DB_NAME`. `SECRET_KEY` es obligatoria en produccion; si falta, el backend no arranca.
+
+Frontend, tomando `frontend\.env.example` como guia:
+
+```text
+VITE_API_URL=https://api.midominio.com/api
+```
+
+Si frontend y backend quedan bajo el mismo dominio con proxy a `/api`, se puede usar `VITE_API_URL=/api`. En desarrollo, si no se define, React usa `http://127.0.0.1:5000/api`; en build de produccion no queda obligado a `localhost`.
+
+### Base de datos y migraciones
+
+Crear una base MySQL/MariaDB vacia en el hosting. Despues configurar `DATABASE_URL` o las variables `DB_*` y ejecutar:
+
+```powershell
+backend\.venv\Scripts\python.exe backend\scripts\migrate.py
+```
+
+El script crea la base si el usuario tiene permisos, carga `backend\schema.sql`, aplica en orden los archivos de `backend\database\migrations` y registra lo aplicado en `schema_migrations`.
+
+Para crear o cambiar el administrador inicial sin guardar contrasenas en el repositorio:
+
+```powershell
+$env:ADMIN_USERNAME="admin"
+$env:ADMIN_PASSWORD="ClaveTemporalLarga123"
+backend\.venv\Scripts\python.exe backend\scripts\create_admin.py
+```
+
+Despues de entrar al panel, cambiar la contrasena temporal por una definitiva. Las contrasenas se guardan con hash `scrypt` usando Werkzeug.
+
+### Compilar frontend
+
+```powershell
+cd frontend
+npm.cmd run build
+```
+
+El resultado queda en `frontend\dist`. Subir esa carpeta al hosting estatico o configurarla como salida de build. Si el hosting sirve una SPA, configurar redireccion de cualquier ruta no encontrada hacia `index.html`; esto evita 404 al recargar `/reservas`, `/login`, `/admin` o `/barberos/:usuario`.
+
+### Ejecutar backend
+
+Desarrollo o hosting Windows:
+
+```powershell
+backend\.venv\Scripts\python.exe backend\run.py
+```
+
+Hosting Linux recomendado:
+
+```bash
+gunicorn -w 2 -b 0.0.0.0:$PORT run:app --chdir backend
+```
+
+El puerto real lo define el hosting con `PORT`. Mantener `FLASK_DEBUG=0` y revisar logs del proveedor si el proceso no inicia.
+
+### Dominio, DNS y SSL
+
+Configuracion comun:
+
+- Dominio principal para frontend: `midominio.com`.
+- Subdominio para backend: `api.midominio.com`.
+- Registro `A`: apunta un dominio o subdominio a la IP del hosting.
+- Registro `CNAME`: apunta `www.midominio.com` a `midominio.com` o al dominio asignado por el proveedor.
+- SSL/HTTPS: activar certificado del hosting para el dominio principal y el subdominio API.
+
+Si se usa `api.midominio.com`, configurar `VITE_API_URL=https://api.midominio.com/api` y `CORS_ORIGIN=https://midominio.com,https://www.midominio.com`. Si se usa un proxy en el mismo dominio, configurar el proxy para enviar `/api` al backend Flask.
+
+### Verificacion despues del despliegue
+
+- Abrir la pagina principal y revisar consola del navegador.
+- Crear una reserva publica y confirmar que queda en base de datos.
+- Iniciar sesion como admin y revisar `/admin`, `/admin/gestion`, `/inventario` y `/reportes`.
+- Iniciar sesion como barbero y confirmar que solo ve sus propias citas.
+- Confirmar que rutas protegidas responden 401/403 sin sesion.
+- Descargar XLSX/PDF de reportes.
+- Revisar logs del backend y errores CORS en navegador.
+- Confirmar que no hay variables reales dentro del repositorio.
+
+### Problemas comunes en produccion
+
+- Conexion a base de datos: revisar host, puerto, usuario, contrasena, nombre de base y permisos del hosting.
+- CORS: `CORS_ORIGIN` debe coincidir exactamente con el dominio del frontend, incluyendo `https://`.
+- Cookie no se mantiene: usar HTTPS, `SESSION_COOKIE_SECURE=true` y `SESSION_COOKIE_SAMESITE=None` si frontend y API estan en dominios/subdominios distintos.
+- 404 al recargar React: falta redireccion SPA hacia `index.html`.
+- Variables no detectadas: en Vite las variables deben existir antes de `npm run build`; en Flask deben existir antes de iniciar el proceso.
+- Migraciones: ejecutar `backend\scripts\migrate.py` una sola vez por despliegue y revisar `schema_migrations`.
+- Dominio o SSL: esperar propagacion DNS y verificar certificado para dominio y subdominio.
+
 ## Rutas frontend
 
 - `/`: pagina principal.
@@ -252,7 +414,7 @@ npm.cmd run preview
 
 ## API principal
 
-La API usa prefijo `http://127.0.0.1:5000/api`.
+En desarrollo local, la API usa prefijo `http://127.0.0.1:5000/api`. En produccion, React debe usar `VITE_API_URL` o `/api` con proxy del hosting.
 
 Autenticacion:
 
@@ -603,7 +765,7 @@ Puerto frontend ocupado:
 
 Sesion no se mantiene:
 
-- revisar `FRONTEND_ORIGIN`;
+- revisar `CORS_ORIGIN`;
 - verificar que el frontend use `http://127.0.0.1:5173`;
 - en desarrollo mantener `SESSION_COOKIE_SECURE=false`.
 
